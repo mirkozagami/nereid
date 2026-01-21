@@ -9,6 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
+import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
 import java.awt.BorderLayout
 import java.beans.PropertyChangeListener
@@ -59,11 +60,12 @@ class MermaidSplitEditor(
     }
 
     private fun setupDocumentListener() {
-        textEditor.editor.document.addDocumentListener(object : com.intellij.openapi.editor.event.DocumentListener {
-            override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
-                updatePreview()
-            }
-        }, this)
+        val listener = DebouncedDocumentListener(
+            delayMs = 300,
+            onUpdate = { updatePreview() },
+            parentDisposable = this
+        )
+        textEditor.editor.document.addDocumentListener(listener, this)
     }
 
     private fun updatePreview() {
