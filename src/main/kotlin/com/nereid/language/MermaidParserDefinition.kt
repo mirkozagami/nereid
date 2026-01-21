@@ -15,7 +15,7 @@ import com.nereid.language.psi.MermaidFile
 class MermaidParserDefinition : ParserDefinition {
 
     companion object {
-        val FILE = IFileElementType(MermaidLanguage.INSTANCE)
+        val FILE = IFileElementType(MermaidLanguage)
     }
 
     override fun createLexer(project: Project?): Lexer = MermaidLexer()
