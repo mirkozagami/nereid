@@ -1,0 +1,95 @@
+<idea-plugin>
+    <id>com.nereid.mermaid</id>
+    <name>Nereid - Mermaid Diagrams</name>
+    <vendor email="support@nereid.dev" url="https://github.com/nereid">Nereid</vendor>
+
+    <description><![CDATA[
+<h2>Nereid - Full-Featured Mermaid Diagram Support</h2>
+
+<p>A powerful, free, and open-source plugin for creating and editing Mermaid diagrams in JetBrains IDEs.</p>
+
+<h3>Features</h3>
+<ul>
+    <li><b>Live Preview</b> - See your diagrams render in real-time as you type</li>
+    <li><b>Syntax Highlighting</b> - Full syntax highlighting for all Mermaid diagram types</li>
+    <li><b>Autocomplete</b> - Smart completion for diagram types, keywords, arrows, and shapes</li>
+    <li><b>Error Detection</b> - Immediate feedback on syntax errors with helpful messages</li>
+    <li><b>Zoom & Pan</b> - Navigate large diagrams with mouse wheel zoom and drag to pan</li>
+    <li><b>Export</b> - Export to PNG, SVG, or copy directly to clipboard</li>
+    <li><b>Theme Support</b> - Automatically matches your IDE theme or choose from Mermaid themes</li>
+    <li><b>Markdown Support</b> - Full support for Mermaid blocks in Markdown files</li>
+</ul>
+
+<h3>Supported Diagram Types</h3>
+<ul>
+    <li>Flowcharts & Graphs</li>
+    <li>Sequence Diagrams</li>
+    <li>Class Diagrams</li>
+    <li>State Diagrams</li>
+    <li>Entity-Relationship Diagrams</li>
+    <li>Gantt Charts</li>
+    <li>Pie Charts</li>
+    <li>Git Graphs</li>
+    <li>Mind Maps</li>
+    <li>And more...</li>
+</ul>
+
+<p><a href="https://github.com/nereid/nereid">GitHub</a> | <a href="https://github.com/nereid/nereid/issues">Report Issues</a></p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="markdown-support.xml">org.intellij.plugins.markdown</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+            name="Mermaid"
+            implementationClass="com.nereid.language.MermaidFileType"
+            fieldName="INSTANCE"
+            language="Mermaid"
+            extensions="mmd;mermaid"/>
+
+        <lang.syntaxHighlighterFactory
+            language="Mermaid"
+            implementationClass="com.nereid.editor.MermaidSyntaxHighlighterFactory"/>
+
+        <colorSettingsPage implementationClass="com.nereid.editor.MermaidColorSettingsPage"/>
+
+        <fileEditorProvider implementationClass="com.nereid.spliteditor.MermaidEditorProvider"/>
+
+        <lang.braceMatcher language="Mermaid" implementationClass="com.nereid.editor.MermaidBraceMatcher"/>
+
+        <lang.commenter language="Mermaid" implementationClass="com.nereid.editor.MermaidCommenter"/>
+
+        <lang.foldingBuilder language="Mermaid" implementationClass="com.nereid.editor.MermaidFoldingBuilder"/>
+
+        <completion.contributor language="Mermaid" implementationClass="com.nereid.editor.MermaidCompletionContributor"/>
+
+        <lang.parserDefinition language="Mermaid" implementationClass="com.nereid.language.MermaidParserDefinition"/>
+
+        <annotator language="Mermaid" implementationClass="com.nereid.editor.MermaidAnnotator"/>
+
+        <applicationService serviceImplementation="com.nereid.settings.MermaidSettings"/>
+
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.nereid.settings.MermaidSettingsConfigurable"
+            id="com.nereid.settings"
+            displayName="Mermaid"/>
+
+        <lang.psiStructureViewFactory language="Mermaid" implementationClass="com.nereid.editor.MermaidStructureViewFactory"/>
+    </extensions>
+
+    <actions>
+        <group id="Mermaid.ExportGroup" text="Mermaid" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="Mermaid.ExportPng" class="com.nereid.actions.ExportToPngAction"/>
+            <action id="Mermaid.ExportSvg" class="com.nereid.actions.ExportToSvgAction"/>
+            <separator/>
+            <action id="Mermaid.CopyPng" class="com.nereid.actions.CopyAsPngAction"/>
+        </group>
+
+        <action id="Mermaid.ExportPngShortcut" class="com.nereid.actions.ExportToPngAction">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift E"/>
+        </action>
+    </actions>
+</idea-plugin>

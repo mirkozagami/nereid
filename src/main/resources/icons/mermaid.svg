@@ -1,0 +1,17 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- N-shape flowchart: 4 nodes connected to form "N" -->
+  <!-- Top-left node -->
+  <rect x="2" y="2" width="4" height="3" rx="0.75" fill="#4fc3f7"/>
+  <!-- Top-right node -->
+  <rect x="10" y="2" width="4" height="3" rx="0.75" fill="#4fc3f7"/>
+  <!-- Bottom-left node -->
+  <rect x="2" y="11" width="4" height="3" rx="0.75" fill="#81c784"/>
+  <!-- Bottom-right node -->
+  <rect x="10" y="11" width="4" height="3" rx="0.75" fill="#81c784"/>
+  <!-- Left vertical connection -->
+  <path d="M4 5 L4 11" stroke="#4fc3f7" stroke-width="1.2" fill="none"/>
+  <!-- Diagonal connection (the middle of N) -->
+  <path d="M4 5 L12 11" stroke="#ff9800" stroke-width="1.2" fill="none"/>
+  <!-- Right vertical connection -->
+  <path d="M12 5 L12 11" stroke="#4fc3f7" stroke-width="1.2" fill="none"/>
+</svg>
