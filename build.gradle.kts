@@ -23,7 +23,7 @@ dependencies {
         pluginVerifier()
         testFramework(TestFrameworkType.Platform)
     }
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+    testImplementation("junit:junit:4.13.2")
 }
 
 kotlin {
@@ -43,6 +43,6 @@ intellijPlatform {
 
 tasks {
     test {
-        useJUnitPlatform()
+        // Using JUnit 4 with IntelliJ Platform test framework
     }
 }
