@@ -38,6 +38,8 @@
         <lang.commenter language="Mermaid" implementationClass="com.nereid.editor.MermaidCommenter"/>
 
         <lang.foldingBuilder language="Mermaid" implementationClass="com.nereid.editor.MermaidFoldingBuilder"/>
+
+        <completion.contributor language="Mermaid" implementationClass="com.nereid.editor.MermaidCompletionContributor"/>
     </extensions>
 
     <actions>
