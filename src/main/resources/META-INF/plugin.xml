@@ -47,6 +47,12 @@
         <annotator language="Mermaid" implementationClass="com.nereid.editor.MermaidAnnotator"/>
 
         <applicationService serviceImplementation="com.nereid.settings.MermaidSettings"/>
+
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.nereid.settings.MermaidSettingsConfigurable"
+            id="com.nereid.settings"
+            displayName="Mermaid"/>
     </extensions>
 
     <actions>
