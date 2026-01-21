@@ -28,6 +28,8 @@
         <lang.syntaxHighlighterFactory
             language="Mermaid"
             implementationClass="com.nereid.editor.MermaidSyntaxHighlighterFactory"/>
+
+        <colorSettingsPage implementationClass="com.nereid.editor.MermaidColorSettingsPage"/>
     </extensions>
 
     <actions>
