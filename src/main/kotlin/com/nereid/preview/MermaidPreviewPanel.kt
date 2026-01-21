@@ -91,10 +91,177 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     }
 
     private fun loadPreviewHtml() {
-        val htmlUrl = javaClass.getResource("/mermaid/preview.html")
-        if (htmlUrl != null) {
-            browser.loadURL(htmlUrl.toExternalForm())
-        }
+        val html = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Mermaid Preview</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        overflow: hidden;
+                        cursor: grab;
+                    }
+                    #container {
+                        width: 100vw;
+                        height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: var(--background-color, #ffffff);
+                    }
+                    #diagram {
+                        transform-origin: center center;
+                        transition: transform 0.1s ease-out;
+                    }
+                    #diagram svg { max-width: none; }
+                    #error {
+                        position: absolute;
+                        bottom: 20px;
+                        left: 20px;
+                        right: 20px;
+                        padding: 12px 16px;
+                        background: #fee;
+                        border: 1px solid #fcc;
+                        border-radius: 4px;
+                        color: #c00;
+                        font-size: 13px;
+                    }
+                    .hidden { display: none !important; }
+                    body.dark { --background-color: #1e1e1e; }
+                    body.dark #error {
+                        background: #3a1a1a;
+                        border-color: #5a2a2a;
+                        color: #faa;
+                    }
+                </style>
+                <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+            </head>
+            <body>
+                <div id="container">
+                    <div id="diagram"></div>
+                    <div id="error" class="hidden"></div>
+                </div>
+                <script>
+                    let currentZoom = 1;
+                    let panX = 0;
+                    let panY = 0;
+                    let isDragging = false;
+                    let lastX, lastY;
+
+                    mermaid.initialize({
+                        startOnLoad: false,
+                        theme: 'default',
+                        securityLevel: 'strict'
+                    });
+
+                    window.renderDiagram = async function(source, theme) {
+                        const diagram = document.getElementById('diagram');
+                        const error = document.getElementById('error');
+
+                        try {
+                            if (theme) {
+                                mermaid.initialize({ theme: theme, securityLevel: 'strict' });
+                            }
+
+                            const { svg } = await mermaid.render('mermaid-diagram', source);
+                            diagram.innerHTML = svg;
+                            diagram.classList.remove('hidden');
+                            error.classList.add('hidden');
+
+                            applyTransform();
+
+                            if (window.javaBridge) {
+                                window.javaBridge.onRenderSuccess();
+                            }
+                        } catch (e) {
+                            error.textContent = e.message || 'Failed to render diagram';
+                            error.classList.remove('hidden');
+
+                            if (window.javaBridge) {
+                                window.javaBridge.onRenderError(e.message || 'Unknown error');
+                            }
+                        }
+                    };
+
+                    window.setZoom = function(zoom) {
+                        currentZoom = zoom;
+                        applyTransform();
+                    };
+
+                    window.resetView = function() {
+                        currentZoom = 1;
+                        panX = 0;
+                        panY = 0;
+                        applyTransform();
+                    };
+
+                    window.fitToView = function() {
+                        const diagram = document.getElementById('diagram');
+                        const svg = diagram.querySelector('svg');
+                        if (!svg) return;
+
+                        const containerRect = document.getElementById('container').getBoundingClientRect();
+                        const svgRect = svg.getBoundingClientRect();
+
+                        const scaleX = containerRect.width / svgRect.width;
+                        const scaleY = containerRect.height / svgRect.height;
+                        currentZoom = Math.min(scaleX, scaleY, 1) * 0.9;
+                        panX = 0;
+                        panY = 0;
+                        applyTransform();
+                    };
+
+                    function applyTransform() {
+                        const diagram = document.getElementById('diagram');
+                        diagram.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentZoom + ')';
+                    }
+
+                    document.addEventListener('wheel', function(e) {
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                            currentZoom = Math.max(0.1, Math.min(5, currentZoom * delta));
+                            applyTransform();
+
+                            if (window.javaBridge) {
+                                window.javaBridge.onZoomChanged(currentZoom);
+                            }
+                        }
+                    }, { passive: false });
+
+                    document.addEventListener('mousedown', function(e) {
+                        if (e.button === 0) {
+                            isDragging = true;
+                            lastX = e.clientX;
+                            lastY = e.clientY;
+                            document.body.style.cursor = 'grabbing';
+                        }
+                    });
+
+                    document.addEventListener('mousemove', function(e) {
+                        if (isDragging) {
+                            panX += e.clientX - lastX;
+                            panY += e.clientY - lastY;
+                            lastX = e.clientX;
+                            lastY = e.clientY;
+                            applyTransform();
+                        }
+                    });
+
+                    document.addEventListener('mouseup', function() {
+                        isDragging = false;
+                        document.body.style.cursor = 'grab';
+                    });
+                </script>
+            </body>
+            </html>
+        """.trimIndent()
+
+        browser.loadHTML(html)
     }
 
     fun renderDiagram(source: String, theme: String? = null) {
