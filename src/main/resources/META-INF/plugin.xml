@@ -47,6 +47,16 @@
     </extensions>
 
     <actions>
-        <!-- Actions will be added as we implement features -->
+        <group id="Mermaid.ExportGroup" text="Mermaid" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="Mermaid.ExportPng" class="com.nereid.actions.ExportToPngAction"/>
+            <action id="Mermaid.ExportSvg" class="com.nereid.actions.ExportToSvgAction"/>
+            <separator/>
+            <action id="Mermaid.CopyPng" class="com.nereid.actions.CopyAsPngAction"/>
+        </group>
+
+        <action id="Mermaid.ExportPngShortcut" class="com.nereid.actions.ExportToPngAction">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift E"/>
+        </action>
     </actions>
 </idea-plugin>
