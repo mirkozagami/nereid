@@ -7,7 +7,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Toggleable
-import com.intellij.openapi.options.ShowSettingsUtil
+import com.nereid.settings.MermaidSettingsDialog
 import javax.swing.JComponent
 
 class MermaidEditorToolbar(
@@ -99,7 +99,7 @@ class MermaidEditorToolbar(
 
     private inner class SettingsAction : AnAction("Settings", "Open Mermaid settings", AllIcons.General.Settings) {
         override fun actionPerformed(e: AnActionEvent) {
-            ShowSettingsUtil.getInstance().showSettingsDialog(e.project, "com.nereid.settings")
+            MermaidSettingsDialog(e.project).show()
         }
     }
 }
