@@ -34,6 +34,8 @@
         <fileEditorProvider implementationClass="com.nereid.spliteditor.MermaidEditorProvider"/>
 
         <lang.braceMatcher language="Mermaid" implementationClass="com.nereid.editor.MermaidBraceMatcher"/>
+
+        <lang.commenter language="Mermaid" implementationClass="com.nereid.editor.MermaidCommenter"/>
     </extensions>
 
     <actions>
