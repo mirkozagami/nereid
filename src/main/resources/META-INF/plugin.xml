@@ -45,6 +45,8 @@
         <lang.parserDefinition language="Mermaid" implementationClass="com.nereid.language.MermaidParserDefinition"/>
 
         <annotator language="Mermaid" implementationClass="com.nereid.editor.MermaidAnnotator"/>
+
+        <applicationService serviceImplementation="com.nereid.settings.MermaidSettings"/>
     </extensions>
 
     <actions>
