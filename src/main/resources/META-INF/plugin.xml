@@ -36,6 +36,8 @@
         <lang.braceMatcher language="Mermaid" implementationClass="com.nereid.editor.MermaidBraceMatcher"/>
 
         <lang.commenter language="Mermaid" implementationClass="com.nereid.editor.MermaidCommenter"/>
+
+        <lang.foldingBuilder language="Mermaid" implementationClass="com.nereid.editor.MermaidFoldingBuilder"/>
     </extensions>
 
     <actions>
