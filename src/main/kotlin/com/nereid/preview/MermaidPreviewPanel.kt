@@ -220,19 +220,36 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         diagram.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentZoom + ')';
                     }
 
-                    document.addEventListener('wheel', function(e) {
-                        e.preventDefault();
-                        // Calculate zoom factor based on scroll amount
-                        const scrollAmount = Math.abs(e.deltaY);
-                        const zoomIntensity = 0.002;
-                        const delta = e.deltaY > 0
-                            ? 1 / (1 + scrollAmount * zoomIntensity)
-                            : 1 + scrollAmount * zoomIntensity;
-                        currentZoom = Math.max(0.05, Math.min(10, currentZoom * delta));
+                    window.zoomIn = function() {
+                        currentZoom = Math.min(10, currentZoom * 1.25);
                         applyTransform();
-
                         if (window.javaBridge) {
                             window.javaBridge.onZoomChanged(currentZoom);
+                        }
+                    };
+
+                    window.zoomOut = function() {
+                        currentZoom = Math.max(0.05, currentZoom / 1.25);
+                        applyTransform();
+                        if (window.javaBridge) {
+                            window.javaBridge.onZoomChanged(currentZoom);
+                        }
+                    };
+
+                    document.addEventListener('wheel', function(e) {
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            const scrollAmount = Math.abs(e.deltaY);
+                            const zoomIntensity = 0.003;
+                            const delta = e.deltaY > 0
+                                ? 1 / (1 + scrollAmount * zoomIntensity)
+                                : 1 + scrollAmount * zoomIntensity;
+                            currentZoom = Math.max(0.05, Math.min(10, currentZoom * delta));
+                            applyTransform();
+
+                            if (window.javaBridge) {
+                                window.javaBridge.onZoomChanged(currentZoom);
+                            }
                         }
                     }, { passive: false });
 
@@ -290,6 +307,18 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     fun setZoom(zoom: Double) {
         if (isLoaded) {
             browser.cefBrowser.executeJavaScript("window.setZoom($zoom);", browser.cefBrowser.url, 0)
+        }
+    }
+
+    fun zoomIn() {
+        if (isLoaded) {
+            browser.cefBrowser.executeJavaScript("window.zoomIn();", browser.cefBrowser.url, 0)
+        }
+    }
+
+    fun zoomOut() {
+        if (isLoaded) {
+            browser.cefBrowser.executeJavaScript("window.zoomOut();", browser.cefBrowser.url, 0)
         }
     }
 

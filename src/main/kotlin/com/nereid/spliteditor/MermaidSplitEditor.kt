@@ -44,8 +44,8 @@ class MermaidSplitEditor(
 
         toolbar = MermaidEditorToolbar(
             onViewModeChanged = { mode -> setViewMode(mode) },
-            onZoomIn = { previewPanel.setZoom(1.1) },
-            onZoomOut = { previewPanel.setZoom(0.9) },
+            onZoomIn = { previewPanel.zoomIn() },
+            onZoomOut = { previewPanel.zoomOut() },
             onZoomReset = { previewPanel.resetView() },
             onFitToView = { previewPanel.fitToView() }
         )
