@@ -21,6 +21,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     private var pendingSource: String? = null
     private var pendingTheme: String = "default"
     private var isLoaded = false
+    private var textSource: String? = null
+    private val themeManager: ThemeManager
 
     var onRenderSuccess: (() -> Unit)? = null
     var onRenderError: ((String) -> Unit)? = null
@@ -37,6 +39,13 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         loadPreviewHtml()
 
         Disposer.register(parentDisposable, this)
+
+        themeManager = ThemeManager(this)
+        themeManager.onThemeChanged = { isDark, mermaidTheme ->
+            setDarkMode(isDark)
+            pendingSource?.let { renderDiagram(it, mermaidTheme) }
+                ?: textSource?.let { renderDiagram(it, mermaidTheme) }
+        }
     }
 
     private fun setupJsBridge() {
@@ -88,10 +97,13 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         }
     }
 
-    fun renderDiagram(source: String, theme: String = "default") {
+    fun renderDiagram(source: String, theme: String? = null) {
+        textSource = source
+        val actualTheme = theme ?: themeManager.getMermaidTheme()
+
         if (!isLoaded) {
             pendingSource = source
-            pendingTheme = theme
+            pendingTheme = actualTheme
             return
         }
 
@@ -101,7 +113,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
             .replace("\$", "\\$")
             .replace("\n", "\\n")
 
-        val js = "window.renderDiagram(`$escapedSource`, '$theme');"
+        val js = "window.renderDiagram(`$escapedSource`, '$actualTheme');"
         browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
     }
 
