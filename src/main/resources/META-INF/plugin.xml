@@ -40,6 +40,8 @@
         <lang.foldingBuilder language="Mermaid" implementationClass="com.nereid.editor.MermaidFoldingBuilder"/>
 
         <completion.contributor language="Mermaid" implementationClass="com.nereid.editor.MermaidCompletionContributor"/>
+
+        <lang.parserDefinition language="Mermaid" implementationClass="com.nereid.language.MermaidParserDefinition"/>
     </extensions>
 
     <actions>
