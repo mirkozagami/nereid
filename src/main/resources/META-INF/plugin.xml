@@ -24,6 +24,10 @@
             fieldName="INSTANCE"
             language="Mermaid"
             extensions="mmd;mermaid"/>
+
+        <lang.syntaxHighlighterFactory
+            language="Mermaid"
+            implementationClass="com.nereid.editor.MermaidSyntaxHighlighterFactory"/>
     </extensions>
 
     <actions>
