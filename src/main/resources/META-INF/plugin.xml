@@ -1,0 +1,27 @@
+<idea-plugin>
+    <id>com.nereid.mermaid</id>
+    <name>Nereid - Mermaid Diagrams</name>
+    <vendor email="support@nereid.dev" url="https://github.com/nereid">Nereid</vendor>
+
+    <description><![CDATA[
+    Full-featured Mermaid diagram support for JetBrains IDEs.
+
+    <ul>
+        <li>Live preview with zoom and pan</li>
+        <li>Syntax highlighting and error detection</li>
+        <li>Autocomplete for diagram types and syntax</li>
+        <li>Export to PNG, SVG, and clipboard</li>
+        <li>Markdown fenced code block support</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Extensions will be added as we implement features -->
+    </extensions>
+
+    <actions>
+        <!-- Actions will be added as we implement features -->
+    </actions>
+</idea-plugin>
