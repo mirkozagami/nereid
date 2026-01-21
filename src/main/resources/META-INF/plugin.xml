@@ -53,6 +53,8 @@
             instance="com.nereid.settings.MermaidSettingsConfigurable"
             id="com.nereid.settings"
             displayName="Mermaid"/>
+
+        <lang.psiStructureViewFactory language="Mermaid" implementationClass="com.nereid.editor.MermaidStructureViewFactory"/>
     </extensions>
 
     <actions>
