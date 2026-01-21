@@ -99,7 +99,7 @@ class MermaidEditorToolbar(
 
     private inner class SettingsAction : AnAction("Settings", "Open Mermaid settings", AllIcons.General.Settings) {
         override fun actionPerformed(e: AnActionEvent) {
-            ShowSettingsUtil.getInstance().showSettingsDialog(e.project, "Mermaid")
+            ShowSettingsUtil.getInstance().showSettingsDialog(e.project, "com.nereid.settings")
         }
     }
 }
