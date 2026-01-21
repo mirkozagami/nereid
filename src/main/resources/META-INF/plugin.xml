@@ -32,6 +32,8 @@
         <colorSettingsPage implementationClass="com.nereid.editor.MermaidColorSettingsPage"/>
 
         <fileEditorProvider implementationClass="com.nereid.spliteditor.MermaidEditorProvider"/>
+
+        <lang.braceMatcher language="Mermaid" implementationClass="com.nereid.editor.MermaidBraceMatcher"/>
     </extensions>
 
     <actions>
