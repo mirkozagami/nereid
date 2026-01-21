@@ -30,6 +30,8 @@
             implementationClass="com.nereid.editor.MermaidSyntaxHighlighterFactory"/>
 
         <colorSettingsPage implementationClass="com.nereid.editor.MermaidColorSettingsPage"/>
+
+        <fileEditorProvider implementationClass="com.nereid.spliteditor.MermaidEditorProvider"/>
     </extensions>
 
     <actions>
