@@ -15,7 +15,8 @@ class MermaidEditorToolbar(
     private val onZoomIn: () -> Unit,
     private val onZoomOut: () -> Unit,
     private val onZoomReset: () -> Unit,
-    private val onFitToView: () -> Unit
+    private val onFitToView: () -> Unit,
+    private val onSettingsChanged: () -> Unit
 ) {
 
     private var currentMode: MermaidSplitEditor.ViewMode = MermaidSplitEditor.ViewMode.SPLIT
@@ -99,7 +100,10 @@ class MermaidEditorToolbar(
 
     private inner class SettingsAction : AnAction("Settings", "Open Mermaid settings", AllIcons.General.Settings) {
         override fun actionPerformed(e: AnActionEvent) {
-            MermaidSettingsDialog(e.project).show()
+            val dialog = MermaidSettingsDialog(e.project)
+            if (dialog.showAndGet()) {
+                onSettingsChanged()
+            }
         }
     }
 }

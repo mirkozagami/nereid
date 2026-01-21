@@ -41,11 +41,16 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         Disposer.register(parentDisposable, this)
 
         themeManager = ThemeManager(this)
-        themeManager.onThemeChanged = { isDark, mermaidTheme ->
+        themeManager.onThemeChanged = { isDark, mermaidTheme, background ->
             setDarkMode(isDark)
+            setBackground(background)
             pendingSource?.let { renderDiagram(it, mermaidTheme) }
                 ?: textSource?.let { renderDiagram(it, mermaidTheme) }
         }
+    }
+
+    fun applySettings() {
+        themeManager.applyCurrentSettings()
     }
 
     private fun setupJsBridge() {
@@ -341,6 +346,13 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
             } else {
                 "document.body.classList.remove('dark');"
             }
+            browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
+        }
+    }
+
+    fun setBackground(color: String) {
+        if (isLoaded) {
+            val js = "document.getElementById('container').style.background = '$color';"
             browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
         }
     }

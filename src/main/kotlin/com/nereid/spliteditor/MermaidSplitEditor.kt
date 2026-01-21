@@ -47,7 +47,8 @@ class MermaidSplitEditor(
             onZoomIn = { previewPanel.zoomIn() },
             onZoomOut = { previewPanel.zoomOut() },
             onZoomReset = { previewPanel.resetView() },
-            onFitToView = { previewPanel.fitToView() }
+            onFitToView = { previewPanel.fitToView() },
+            onSettingsChanged = { previewPanel.applySettings() }
         )
 
         mainPanel = JPanel(BorderLayout()).apply {
