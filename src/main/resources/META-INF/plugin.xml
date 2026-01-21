@@ -18,7 +18,12 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Extensions will be added as we implement features -->
+        <fileType
+            name="Mermaid"
+            implementationClass="com.nereid.language.MermaidFileType"
+            fieldName="INSTANCE"
+            language="Mermaid"
+            extensions="mmd;mermaid"/>
     </extensions>
 
     <actions>
