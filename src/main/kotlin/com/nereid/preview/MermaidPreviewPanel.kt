@@ -221,15 +221,18 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                     }
 
                     document.addEventListener('wheel', function(e) {
-                        if (e.ctrlKey) {
-                            e.preventDefault();
-                            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                            currentZoom = Math.max(0.1, Math.min(5, currentZoom * delta));
-                            applyTransform();
+                        e.preventDefault();
+                        // Calculate zoom factor based on scroll amount
+                        const scrollAmount = Math.abs(e.deltaY);
+                        const zoomIntensity = 0.002;
+                        const delta = e.deltaY > 0
+                            ? 1 / (1 + scrollAmount * zoomIntensity)
+                            : 1 + scrollAmount * zoomIntensity;
+                        currentZoom = Math.max(0.05, Math.min(10, currentZoom * delta));
+                        applyTransform();
 
-                            if (window.javaBridge) {
-                                window.javaBridge.onZoomChanged(currentZoom);
-                            }
+                        if (window.javaBridge) {
+                            window.javaBridge.onZoomChanged(currentZoom);
                         }
                     }, { passive: false });
 
