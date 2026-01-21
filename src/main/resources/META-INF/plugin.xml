@@ -42,6 +42,8 @@
         <completion.contributor language="Mermaid" implementationClass="com.nereid.editor.MermaidCompletionContributor"/>
 
         <lang.parserDefinition language="Mermaid" implementationClass="com.nereid.language.MermaidParserDefinition"/>
+
+        <annotator language="Mermaid" implementationClass="com.nereid.editor.MermaidAnnotator"/>
     </extensions>
 
     <actions>
