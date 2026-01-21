@@ -7,6 +7,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Toggleable
+import com.intellij.openapi.options.ShowSettingsUtil
 import javax.swing.JComponent
 
 class MermaidEditorToolbar(
@@ -35,6 +36,8 @@ class MermaidEditorToolbar(
             add(ZoomOutAction())
             add(ZoomResetAction())
             add(FitToViewAction())
+            addSeparator()
+            add(SettingsAction())
         }
 
         toolbar = ActionManager.getInstance().createActionToolbar("MermaidEditor", group, true)
@@ -92,5 +95,11 @@ class MermaidEditorToolbar(
 
     private inner class FitToViewAction : AnAction("Fit to View", "Fit diagram to view", AllIcons.General.FitContent) {
         override fun actionPerformed(e: AnActionEvent) = onFitToView()
+    }
+
+    private inner class SettingsAction : AnAction("Settings", "Open Mermaid settings", AllIcons.General.Settings) {
+        override fun actionPerformed(e: AnActionEvent) {
+            ShowSettingsUtil.getInstance().showSettingsDialog(e.project, "Mermaid")
+        }
     }
 }
