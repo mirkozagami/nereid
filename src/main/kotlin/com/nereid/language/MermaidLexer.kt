@@ -33,7 +33,13 @@ class MermaidLexer : LexerBase() {
             "C4Context" to MermaidTokenTypes.C4CONTEXT,
             "sankey-beta" to MermaidTokenTypes.SANKEY,
             "xychart-beta" to MermaidTokenTypes.XY_CHART,
-            "block-beta" to MermaidTokenTypes.BLOCK
+            "block-beta" to MermaidTokenTypes.BLOCK,
+            // Mermaid v11 diagram types
+            "zenuml" to MermaidTokenTypes.ZENUML,
+            "packet-beta" to MermaidTokenTypes.PACKET,
+            "kanban" to MermaidTokenTypes.KANBAN,
+            "architecture-beta" to MermaidTokenTypes.ARCHITECTURE,
+            "journey" to MermaidTokenTypes.JOURNEY
         )
 
         private val DIRECTIONS = setOf("TB", "TD", "BT", "RL", "LR")
@@ -52,7 +58,14 @@ class MermaidLexer : LexerBase() {
             "rect" to MermaidTokenTypes.KEYWORD,
             "class" to MermaidTokenTypes.KEYWORD,
             "section" to MermaidTokenTypes.KEYWORD,
-            "title" to MermaidTokenTypes.KEYWORD
+            "title" to MermaidTokenTypes.KEYWORD,
+            // Mermaid v11 participant types
+            "boundary" to MermaidTokenTypes.KEYWORD,
+            "control" to MermaidTokenTypes.KEYWORD,
+            "entity" to MermaidTokenTypes.KEYWORD,
+            "database" to MermaidTokenTypes.KEYWORD,
+            "collections" to MermaidTokenTypes.KEYWORD,
+            "queue" to MermaidTokenTypes.KEYWORD
         )
 
         private val ARROWS = listOf(

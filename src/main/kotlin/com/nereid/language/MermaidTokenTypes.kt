@@ -22,6 +22,11 @@ object MermaidTokenTypes {
     @JvmField val SANKEY = MermaidElementType("SANKEY")
     @JvmField val XY_CHART = MermaidElementType("XY_CHART")
     @JvmField val BLOCK = MermaidElementType("BLOCK")
+    @JvmField val ZENUML = MermaidElementType("ZENUML")
+    @JvmField val PACKET = MermaidElementType("PACKET")
+    @JvmField val KANBAN = MermaidElementType("KANBAN")
+    @JvmField val ARCHITECTURE = MermaidElementType("ARCHITECTURE")
+    @JvmField val JOURNEY = MermaidElementType("JOURNEY")
 
     // Directions
     @JvmField val DIRECTION = MermaidElementType("DIRECTION")
@@ -64,7 +69,8 @@ object MermaidTokenTypes {
     @JvmField val DIAGRAM_TYPES = TokenSet.create(
         GRAPH, FLOWCHART, SEQUENCE_DIAGRAM, CLASS_DIAGRAM, STATE_DIAGRAM,
         ER_DIAGRAM, GANTT, PIE, GITGRAPH, MINDMAP, TIMELINE, QUADRANT,
-        REQUIREMENT, C4CONTEXT, SANKEY, XY_CHART, BLOCK
+        REQUIREMENT, C4CONTEXT, SANKEY, XY_CHART, BLOCK, ZENUML, PACKET,
+        KANBAN, ARCHITECTURE, JOURNEY
     )
 
     @JvmField val KEYWORDS = TokenSet.create(KEYWORD, SUBGRAPH, END, DIRECTION)

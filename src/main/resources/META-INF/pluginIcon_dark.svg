@@ -1,9 +1,22 @@
 <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
   <rect width="40" height="40" rx="8" fill="#2d2d3a"/>
-  <path d="M8 12h10v6H8z" fill="#4fc3f7"/>
-  <path d="M22 12h10v6H22z" fill="#4fc3f7"/>
-  <path d="M15 22h10v6H15z" fill="#81c784"/>
-  <path d="M13 18v4h2v-4z" fill="#4fc3f7"/>
-  <path d="M25 18v4h2v-4z" fill="#4fc3f7"/>
-  <path d="M20 28v4h2v-4z" fill="#81c784"/>
+  <!-- N-shape flowchart: 4 nodes connected to form "N" -->
+  <!-- Top-left node -->
+  <rect x="8" y="8" width="8" height="6" rx="1.5" fill="#64b5f6"/>
+  <!-- Top-right node -->
+  <rect x="24" y="8" width="8" height="6" rx="1.5" fill="#64b5f6"/>
+  <!-- Bottom-left node -->
+  <rect x="8" y="26" width="8" height="6" rx="1.5" fill="#a5d6a7"/>
+  <!-- Bottom-right node -->
+  <rect x="24" y="26" width="8" height="6" rx="1.5" fill="#a5d6a7"/>
+  <!-- Left vertical connection -->
+  <path d="M12 14 L12 26" stroke="#64b5f6" stroke-width="2" fill="none"/>
+  <!-- Diagonal connection (the middle of N) -->
+  <path d="M12 14 L28 26" stroke="#ffb74d" stroke-width="2" fill="none"/>
+  <!-- Right vertical connection -->
+  <path d="M28 14 L28 26" stroke="#64b5f6" stroke-width="2" fill="none"/>
+  <!-- Arrow heads -->
+  <polygon points="12,24 10,22 14,22" fill="#64b5f6"/>
+  <polygon points="28,24 26,22 30,22" fill="#64b5f6"/>
+  <polygon points="26,24 28,26 26,28" fill="#ffb74d"/>
 </svg>

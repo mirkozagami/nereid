@@ -1,0 +1,37 @@
+/* Mermaid diagrams in markdown preview */
+
+/* Hide the original code block once processed */
+pre.mermaid[data-processed] {
+    display: none !important;
+}
+
+/* Container for rendered diagrams */
+.mermaid-rendered {
+    display: block;
+    margin: 1em 0;
+    padding: 1em;
+    overflow: visible;
+    background: #ffffff;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.mermaid-rendered svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Error display */
+.mermaid-error {
+    margin: 1em 0;
+    padding: 0.75em 1em;
+    background-color: #fff0f0;
+    border: 1px solid #ffcccc;
+    border-radius: 4px;
+    color: #c00;
+    font-family: monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+}

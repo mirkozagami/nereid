@@ -71,6 +71,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                 if (frame?.isMain == true) {
                     injectJavaBridge()
                     isLoaded = true
+                    // Apply theme and background settings immediately
+                    applySettings()
                     pendingSource?.let { renderDiagram(it, pendingTheme) }
                     pendingSource = null
                 }
@@ -143,7 +145,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         color: #faa;
                     }
                 </style>
-                <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
             </head>
             <body>
                 <div id="container">
@@ -209,15 +211,32 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         const svg = diagram.querySelector('svg');
                         if (!svg) return;
 
-                        const containerRect = document.getElementById('container').getBoundingClientRect();
-                        const svgRect = svg.getBoundingClientRect();
-
-                        const scaleX = containerRect.width / svgRect.width;
-                        const scaleY = containerRect.height / svgRect.height;
-                        currentZoom = Math.min(scaleX, scaleY, 1) * 0.9;
+                        // Reset transform first to get accurate natural dimensions
+                        currentZoom = 1;
                         panX = 0;
                         panY = 0;
                         applyTransform();
+
+                        // Wait for layout to settle, then calculate fit
+                        requestAnimationFrame(function() {
+                            const containerRect = document.getElementById('container').getBoundingClientRect();
+                            const svgRect = svg.getBoundingClientRect();
+
+                            // Add small padding (5%) around the diagram
+                            const padding = 0.95;
+                            const scaleX = (containerRect.width * padding) / svgRect.width;
+                            const scaleY = (containerRect.height * padding) / svgRect.height;
+
+                            // Use the smaller scale to fit both dimensions, allow zoom > 1 for small diagrams
+                            currentZoom = Math.min(scaleX, scaleY);
+                            panX = 0;
+                            panY = 0;
+                            applyTransform();
+
+                            if (window.javaBridge) {
+                                window.javaBridge.onZoomChanged(currentZoom);
+                            }
+                        });
                     };
 
                     function applyTransform() {

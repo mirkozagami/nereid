@@ -2,4 +2,9 @@
     <extensions defaultExtensionNs="com.intellij">
         <multiHostInjector implementation="com.nereid.markdown.MermaidLanguageInjector"/>
     </extensions>
+
+    <extensions defaultExtensionNs="org.intellij.markdown">
+        <fenceGeneratingProvider implementation="com.nereid.markdown.MermaidCodeFenceGeneratingProvider"/>
+        <browserPreviewExtensionProvider implementation="com.nereid.markdown.MermaidBrowserPreviewExtension$Provider"/>
+    </extensions>
 </idea-plugin>

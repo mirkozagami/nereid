@@ -1,5 +1,11 @@
 package com.nereid.spliteditor
 
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionGroup
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.Toggleable
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
 import com.intellij.openapi.fileEditor.FileEditorState
@@ -43,7 +49,6 @@ class MermaidSplitEditor(
         }
 
         toolbar = MermaidEditorToolbar(
-            onViewModeChanged = { mode -> setViewMode(mode) },
             onZoomIn = { previewPanel.zoomIn() },
             onZoomOut = { previewPanel.zoomOut() },
             onZoomReset = { previewPanel.resetView() },
@@ -94,7 +99,29 @@ class MermaidSplitEditor(
                 splitPane.dividerSize = 0
             }
         }
-        toolbar.setViewMode(mode)
+    }
+
+    override fun getTabActions(): ActionGroup {
+        return DefaultActionGroup().apply {
+            add(ViewModeAction("Editor Only", ViewMode.CODE_ONLY, AllIcons.General.LayoutEditorOnly))
+            add(ViewModeAction("Editor and Preview", ViewMode.SPLIT, AllIcons.General.LayoutEditorPreview))
+            add(ViewModeAction("Preview Only", ViewMode.PREVIEW_ONLY, AllIcons.General.LayoutPreviewOnly))
+        }
+    }
+
+    private inner class ViewModeAction(
+        text: String,
+        private val mode: ViewMode,
+        icon: javax.swing.Icon
+    ) : AnAction(text, "Switch to $text view", icon), Toggleable {
+
+        override fun actionPerformed(e: AnActionEvent) {
+            setViewMode(mode)
+        }
+
+        override fun update(e: AnActionEvent) {
+            Toggleable.setSelected(e.presentation, viewMode == mode)
+        }
     }
 
     override fun getComponent(): JComponent = mainPanel

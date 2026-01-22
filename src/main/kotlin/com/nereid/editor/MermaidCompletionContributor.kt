@@ -24,7 +24,13 @@ class MermaidCompletionContributor : CompletionContributor() {
             "quadrantChart" to "Quadrant chart",
             "sankey-beta" to "Sankey diagram",
             "xychart-beta" to "XY chart",
-            "block-beta" to "Block diagram"
+            "block-beta" to "Block diagram",
+            // Mermaid v11 diagram types
+            "zenuml" to "ZenUML sequence diagram",
+            "packet-beta" to "Packet diagram",
+            "kanban" to "Kanban board",
+            "architecture-beta" to "Architecture diagram",
+            "journey" to "User journey diagram"
         )
 
         private val DIRECTIONS = listOf(
@@ -48,7 +54,14 @@ class MermaidCompletionContributor : CompletionContributor() {
             "par" to "Parallel block",
             "rect" to "Rectangle highlight",
             "section" to "Gantt section",
-            "title" to "Diagram title"
+            "title" to "Diagram title",
+            // Mermaid v11 participant types
+            "boundary" to "Boundary participant",
+            "control" to "Control participant",
+            "entity" to "Entity participant",
+            "database" to "Database participant",
+            "collections" to "Collections participant",
+            "queue" to "Queue participant"
         )
 
         private val ARROWS = listOf(
