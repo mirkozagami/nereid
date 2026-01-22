@@ -153,9 +153,9 @@ The plugin ZIP will be generated in `build/distributions/`.
 
 Contributions are welcome! Feel free to:
 
-- 🐛 [Report bugs](https://github.com/nereid/nereid/issues)
-- 💡 [Suggest features](https://github.com/nereid/nereid/issues)
-- 🔧 Submit pull requests
+- 🐛 [Report bugs](https://github.com/mirkozagami/nereid/issues)
+- 💡 [Suggest features](https://github.com/mirkozagami/nereid/issues)
+- 🔧 [Submit pull requests](https://github.com/mirkozagami/nereid/pulls)
 
 ---
 
