@@ -1,0 +1,20 @@
+architecture-beta
+    group k8s(cloud)[Kubernetes Cluster]
+
+    service ingress(internet)[Ingress Controller] in k8s
+    service api(server)[API Gateway] in k8s
+    service auth(server)[Auth Service] in k8s
+    service users(server)[User Service] in k8s
+    service orders(server)[Order Service] in k8s
+    service cache(database)[Redis Cache] in k8s
+    service db(database)[PostgreSQL] in k8s
+    service queue(disk)[Message Queue] in k8s
+
+    ingress:R --> L:api
+    api:R --> L:auth
+    api:B --> T:users
+    api:B --> T:orders
+    auth:R --> L:cache
+    users:B --> T:db
+    orders:B --> T:db
+    orders:R --> L:queue

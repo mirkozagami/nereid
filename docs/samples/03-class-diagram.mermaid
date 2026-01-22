@@ -1,0 +1,54 @@
+classDiagram
+    direction TB
+
+    class Customer {
+        +String id
+        +String name
+        +String email
+        +List~Order~ orders
+        +placeOrder()
+        +viewHistory()
+    }
+
+    class Order {
+        +String orderId
+        +Date createdAt
+        +OrderStatus status
+        +List~LineItem~ items
+        +calculateTotal()
+        +cancel()
+    }
+
+    class Product {
+        +String sku
+        +String name
+        +Money price
+        +int stockLevel
+        +Category category
+        +updateStock()
+    }
+
+    class LineItem {
+        +Product product
+        +int quantity
+        +Money subtotal
+    }
+
+    class Payment {
+        +String transactionId
+        +Money amount
+        +PaymentMethod method
+        +process()
+        +refund()
+    }
+
+    Customer "1" --> "*" Order : places
+    Order "1" --> "*" LineItem : contains
+    LineItem "*" --> "1" Product : references
+    Order "1" --> "1" Payment : has
+
+    style Customer fill:#74c0fc,stroke:#1c7ed6
+    style Order fill:#63e6be,stroke:#0ca678
+    style Product fill:#ffd43b,stroke:#fab005
+    style LineItem fill:#da77f2,stroke:#be4bdb
+    style Payment fill:#ff8787,stroke:#fa5252

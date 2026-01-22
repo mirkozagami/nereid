@@ -1,0 +1,35 @@
+gitGraph
+    commit id: "Initial" tag: "v1.0.0"
+    branch develop
+    checkout develop
+    commit id: "Setup CI"
+
+    branch feature/auth
+    checkout feature/auth
+    commit id: "Add login"
+    commit id: "Add JWT"
+
+    checkout develop
+    branch feature/api
+    checkout feature/api
+    commit id: "REST endpoints"
+    commit id: "Validation"
+
+    checkout develop
+    merge feature/auth id: "Merge auth" tag: "v1.1.0"
+
+    checkout feature/api
+    commit id: "Tests"
+
+    checkout develop
+    merge feature/api id: "Merge API"
+
+    checkout main
+    merge develop id: "Release" tag: "v1.2.0"
+
+    checkout develop
+    branch hotfix/security
+    commit id: "Patch CVE"
+
+    checkout main
+    merge hotfix/security id: "Hotfix" tag: "v1.2.1"

@@ -1,0 +1,41 @@
+erDiagram
+    USER ||--o{ POST : writes
+    USER ||--o{ COMMENT : makes
+    USER {
+        uuid id PK
+        string username UK
+        string email UK
+        string password_hash
+        timestamp created_at
+    }
+
+    POST ||--o{ COMMENT : has
+    POST ||--|{ POST_TAG : tagged
+    POST {
+        uuid id PK
+        uuid author_id FK
+        string title
+        text content
+        enum status
+        timestamp published_at
+    }
+
+    COMMENT {
+        uuid id PK
+        uuid post_id FK
+        uuid user_id FK
+        text body
+        timestamp created_at
+    }
+
+    TAG ||--|{ POST_TAG : applied
+    TAG {
+        uuid id PK
+        string name UK
+        string color
+    }
+
+    POST_TAG {
+        uuid post_id FK
+        uuid tag_id FK
+    }
