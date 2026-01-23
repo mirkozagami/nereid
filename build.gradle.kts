@@ -41,17 +41,34 @@ intellijPlatform {
         }
     }
 
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
+
     pluginVerification {
         ides {
-            // Verify against multiple IDE versions for compatibility
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2023.3.8")    // 233 - minimum supported
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.1.7")    // 241
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.2.4")    // 242
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3.1")    // 243 - latest stable
+            // Check if specific IDE is requested via command line for matrix builds
+            val ideType = providers.gradleProperty("plugin.verifier.ide.type").orNull
+            val ideVersion = providers.gradleProperty("plugin.verifier.ide.version").orNull
 
-            // Also verify with other JetBrains IDEs to ensure cross-IDE compatibility
-            ide(IntelliJPlatformType.PyCharmCommunity, "2024.3.1")
-            ide(IntelliJPlatformType.WebStorm, "2024.3.1")
+            if (ideType != null && ideVersion != null) {
+                // Single IDE verification for matrix builds
+                when (ideType) {
+                    "IC" -> ide(IntelliJPlatformType.IntellijIdeaCommunity, ideVersion)
+                    "PC" -> ide(IntelliJPlatformType.PyCharmCommunity, ideVersion)
+                    "WS" -> ide(IntelliJPlatformType.WebStorm, ideVersion)
+                }
+            } else {
+                // Full verification suite
+                ide(IntelliJPlatformType.IntellijIdeaCommunity, "2023.3.8")    // 233 - minimum supported
+                ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.1.7")    // 241
+                ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.2.4")    // 242
+                ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3.1")    // 243 - latest stable
+
+                // Also verify with other JetBrains IDEs to ensure cross-IDE compatibility
+                ide(IntelliJPlatformType.PyCharmCommunity, "2024.3.1")
+                ide(IntelliJPlatformType.WebStorm, "2024.3.1")
+            }
         }
     }
 }
