@@ -6,6 +6,9 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Toggleable
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.fileChooser.FileChooserFactory
+import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
 import com.intellij.openapi.fileEditor.FileEditorState
@@ -18,7 +21,16 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
 import java.awt.BorderLayout
+import java.awt.Image
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.image.BufferedImage
 import java.beans.PropertyChangeListener
+import java.io.ByteArrayInputStream
+import java.util.Base64
+import javax.imageio.ImageIO
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSplitPane
@@ -62,7 +74,89 @@ class MermaidSplitEditor(
         }
 
         setupDocumentListener()
+        setupExportCallbacks()
         updatePreview()
+    }
+
+    private fun setupExportCallbacks() {
+        previewPanel.onExportPng = { triggerExportPng() }
+        previewPanel.onExportSvg = { triggerExportSvg() }
+        previewPanel.onCopyPng = { triggerCopyPng() }
+    }
+
+    fun triggerExportPng() {
+        ApplicationManager.getApplication().invokeLater {
+            val descriptor = FileSaverDescriptor("Export as PNG", "Choose where to save the PNG file", "png")
+            val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
+            val result = dialog.save(file.parent, file.nameWithoutExtension + ".png")
+
+            result?.let { wrapper ->
+                previewPanel.exportAsPng { dataUrl ->
+                    if (dataUrl.isNotEmpty() && dataUrl.startsWith("data:image/png;base64,")) {
+                        ApplicationManager.getApplication().invokeLater {
+                            try {
+                                val base64Data = dataUrl.removePrefix("data:image/png;base64,")
+                                val imageBytes = Base64.getDecoder().decode(base64Data)
+                                wrapper.file.writeBytes(imageBytes)
+                            } catch (e: Exception) {
+                                // Silently fail - could show notification in the future
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun triggerExportSvg() {
+        ApplicationManager.getApplication().invokeLater {
+            val descriptor = FileSaverDescriptor("Export as SVG", "Choose where to save the SVG file", "svg")
+            val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
+            val result = dialog.save(file.parent, file.nameWithoutExtension + ".svg")
+
+            result?.let { wrapper ->
+                previewPanel.exportAsSvg { svgContent ->
+                    if (svgContent.isNotEmpty()) {
+                        ApplicationManager.getApplication().invokeLater {
+                            try {
+                                wrapper.file.writeText(svgContent)
+                            } catch (e: Exception) {
+                                // Silently fail - could show notification in the future
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun triggerCopyPng() {
+        previewPanel.exportAsPng { dataUrl ->
+            if (dataUrl.isNotEmpty() && dataUrl.startsWith("data:image/png;base64,")) {
+                ApplicationManager.getApplication().invokeLater {
+                    try {
+                        val base64Data = dataUrl.removePrefix("data:image/png;base64,")
+                        val imageBytes = Base64.getDecoder().decode(base64Data)
+                        val image = ImageIO.read(ByteArrayInputStream(imageBytes))
+                        if (image != null) {
+                            val transferable = ImageTransferable(image)
+                            Toolkit.getDefaultToolkit().systemClipboard.setContents(transferable, null)
+                        }
+                    } catch (e: Exception) {
+                        // Silently fail - could show notification in the future
+                    }
+                }
+            }
+        }
+    }
+
+    private class ImageTransferable(private val image: BufferedImage) : Transferable {
+        override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.imageFlavor)
+        override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = DataFlavor.imageFlavor.equals(flavor)
+        override fun getTransferData(flavor: DataFlavor): Image {
+            if (!isDataFlavorSupported(flavor)) throw UnsupportedFlavorException(flavor)
+            return image
+        }
     }
 
     private fun setupDocumentListener() {

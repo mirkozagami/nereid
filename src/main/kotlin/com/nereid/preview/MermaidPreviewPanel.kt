@@ -7,6 +7,9 @@ import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
+import org.cef.callback.CefContextMenuParams
+import org.cef.callback.CefMenuModel
+import org.cef.handler.CefContextMenuHandlerAdapter
 import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
 import javax.swing.JComponent
@@ -17,6 +20,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     private val browser: JBCefBrowser
     private val panel: JPanel
     private val jsQuery: JBCefJSQuery
+    private val pngExportQuery: JBCefJSQuery
+    private val svgExportQuery: JBCefJSQuery
 
     private var pendingSource: String? = null
     private var pendingTheme: String = "default"
@@ -24,9 +29,23 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     private var textSource: String? = null
     private val themeManager: ThemeManager
 
+    private var pngExportCallback: ((String) -> Unit)? = null
+    private var svgExportCallback: ((String) -> Unit)? = null
+
     var onRenderSuccess: (() -> Unit)? = null
     var onRenderError: ((String) -> Unit)? = null
     var onZoomChanged: ((Double) -> Unit)? = null
+
+    // Context menu callbacks
+    var onExportPng: (() -> Unit)? = null
+    var onExportSvg: (() -> Unit)? = null
+    var onCopyPng: (() -> Unit)? = null
+
+    companion object {
+        private const val MENU_ID_EXPORT_PNG = 26501
+        private const val MENU_ID_EXPORT_SVG = 26502
+        private const val MENU_ID_COPY_PNG = 26503
+    }
 
     init {
         browser = JBCefBrowser()
@@ -34,8 +53,12 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         panel.add(browser.component, BorderLayout.CENTER)
 
         jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+        pngExportQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+        svgExportQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
 
         setupJsBridge()
+        setupExportQueries()
+        setupContextMenu()
         loadPreviewHtml()
 
         Disposer.register(parentDisposable, this)
@@ -51,6 +74,53 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
 
     fun applySettings() {
         themeManager.applyCurrentSettings()
+    }
+
+    private fun setupExportQueries() {
+        pngExportQuery.addHandler { dataUrl ->
+            pngExportCallback?.invoke(dataUrl)
+            pngExportCallback = null
+            null
+        }
+
+        svgExportQuery.addHandler { svgContent ->
+            svgExportCallback?.invoke(svgContent)
+            svgExportCallback = null
+            null
+        }
+    }
+
+    private fun setupContextMenu() {
+        browser.jbCefClient.addContextMenuHandler(object : CefContextMenuHandlerAdapter() {
+            override fun onBeforeContextMenu(
+                browser: CefBrowser?,
+                frame: CefFrame?,
+                params: CefContextMenuParams?,
+                model: CefMenuModel?
+            ) {
+                model?.clear()
+                model?.addItem(MENU_ID_EXPORT_PNG, "Export as PNG...")
+                model?.addItem(MENU_ID_EXPORT_SVG, "Export as SVG...")
+                model?.addSeparator()
+                model?.addItem(MENU_ID_COPY_PNG, "Copy as PNG")
+            }
+
+            override fun onContextMenuCommand(
+                browser: CefBrowser?,
+                frame: CefFrame?,
+                params: CefContextMenuParams?,
+                commandId: Int,
+                eventFlags: Int
+            ): Boolean {
+                when (commandId) {
+                    MENU_ID_EXPORT_PNG -> onExportPng?.invoke()
+                    MENU_ID_EXPORT_SVG -> onExportSvg?.invoke()
+                    MENU_ID_COPY_PNG -> onCopyPng?.invoke()
+                    else -> return false
+                }
+                return true
+            }
+        }, browser.cefBrowser)
     }
 
     private fun setupJsBridge() {
@@ -91,6 +161,12 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                 },
                 onZoomChanged: function(zoom) {
                     ${jsQuery.inject("'zoom:' + zoom")}
+                },
+                onPngExport: function(dataUrl) {
+                    ${pngExportQuery.inject("dataUrl")}
+                },
+                onSvgExport: function(svgContent) {
+                    ${svgExportQuery.inject("svgContent")}
                 }
             };
         """.trimIndent()
@@ -300,6 +376,89 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         isDragging = false;
                         document.body.style.cursor = 'grab';
                     });
+
+                    window.exportAsPng = function() {
+                        const svg = document.querySelector('#diagram svg');
+                        if (!svg) {
+                            if (window.javaBridge) window.javaBridge.onPngExport('');
+                            return;
+                        }
+
+                        // Get SVG dimensions from attributes or viewBox
+                        let width, height;
+                        const widthAttr = svg.getAttribute('width');
+                        const heightAttr = svg.getAttribute('height');
+
+                        if (widthAttr && heightAttr) {
+                            width = parseFloat(widthAttr);
+                            height = parseFloat(heightAttr);
+                        }
+
+                        // Fallback to viewBox
+                        if (!width || !height || isNaN(width) || isNaN(height)) {
+                            const viewBox = svg.getAttribute('viewBox');
+                            if (viewBox) {
+                                const parts = viewBox.split(/[\s,]+/);
+                                if (parts.length >= 4) {
+                                    width = parseFloat(parts[2]);
+                                    height = parseFloat(parts[3]);
+                                }
+                            }
+                        }
+
+                        // Final fallback to getBBox
+                        if (!width || !height || isNaN(width) || isNaN(height)) {
+                            const bbox = svg.getBBox();
+                            width = bbox.width;
+                            height = bbox.height;
+                        }
+
+                        // Clone SVG and ensure it has explicit dimensions
+                        const svgClone = svg.cloneNode(true);
+                        svgClone.setAttribute('width', width);
+                        svgClone.setAttribute('height', height);
+
+                        const svgData = new XMLSerializer().serializeToString(svgClone);
+                        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                        const url = URL.createObjectURL(svgBlob);
+
+                        const img = new Image();
+                        img.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            const scale = 2; // Higher resolution
+                            canvas.width = width * scale;
+                            canvas.height = height * scale;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = getComputedStyle(document.getElementById('container')).backgroundColor || '#ffffff';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.scale(scale, scale);
+                            ctx.drawImage(img, 0, 0, width, height);
+                            URL.revokeObjectURL(url);
+
+                            const dataUrl = canvas.toDataURL('image/png');
+                            if (window.javaBridge) {
+                                window.javaBridge.onPngExport(dataUrl);
+                            }
+                        };
+                        img.onerror = function() {
+                            URL.revokeObjectURL(url);
+                            if (window.javaBridge) window.javaBridge.onPngExport('');
+                        };
+                        img.src = url;
+                    };
+
+                    window.exportAsSvg = function() {
+                        const svg = document.querySelector('#diagram svg');
+                        if (!svg) {
+                            if (window.javaBridge) window.javaBridge.onSvgExport('');
+                            return;
+                        }
+
+                        const svgData = new XMLSerializer().serializeToString(svg);
+                        if (window.javaBridge) {
+                            window.javaBridge.onSvgExport(svgData);
+                        }
+                    };
                 </script>
             </body>
             </html>
@@ -358,6 +517,24 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         }
     }
 
+    fun exportAsPng(callback: (String) -> Unit) {
+        if (isLoaded) {
+            pngExportCallback = callback
+            browser.cefBrowser.executeJavaScript("window.exportAsPng();", browser.cefBrowser.url, 0)
+        } else {
+            callback("")
+        }
+    }
+
+    fun exportAsSvg(callback: (String) -> Unit) {
+        if (isLoaded) {
+            svgExportCallback = callback
+            browser.cefBrowser.executeJavaScript("window.exportAsSvg();", browser.cefBrowser.url, 0)
+        } else {
+            callback("")
+        }
+    }
+
     fun setDarkMode(dark: Boolean) {
         if (isLoaded) {
             val js = if (dark) {
@@ -380,6 +557,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
 
     override fun dispose() {
         Disposer.dispose(jsQuery)
+        Disposer.dispose(pngExportQuery)
+        Disposer.dispose(svgExportQuery)
         Disposer.dispose(browser)
     }
 }

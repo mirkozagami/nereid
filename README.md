@@ -7,7 +7,7 @@
 *A full-featured, free, and open-source Mermaid diagramming plugin for all JetBrains IDEs.*
 
 [![Mermaid v11](https://img.shields.io/badge/Mermaid-v11-ff3670?logo=mermaid)](https://mermaid.js.org/)
-[![JetBrains Plugin](https://img.shields.io/badge/JetBrains-Plugin-000000?logo=jetbrains)](https://plugins.jetbrains.com/)
+[![JetBrains Plugin](https://img.shields.io/badge/JetBrains-Plugin-000000?logo=jetbrains)](https://plugins.jetbrains.com/plugin/29877-nereid)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 [Getting Started](#-getting-started) | [Features](#-features) | [Installation](#-installation) | [Contributing](#-contributing)

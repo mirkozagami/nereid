@@ -74,13 +74,13 @@
             parentId="tools"
             instance="com.nereid.settings.MermaidSettingsConfigurable"
             id="com.nereid.settings"
-            displayName="Mermaid"/>
+            displayName="Nereid"/>
 
         <lang.psiStructureViewFactory language="Mermaid" implementationClass="com.nereid.editor.MermaidStructureViewFactory"/>
     </extensions>
 
     <actions>
-        <group id="Mermaid.ExportGroup" text="Mermaid" popup="true">
+        <group id="Mermaid.ExportGroup" text="Nereid" popup="true">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="Mermaid.ExportPng" class="com.nereid.actions.ExportToPngAction"/>
             <action id="Mermaid.ExportSvg" class="com.nereid.actions.ExportToSvgAction"/>
