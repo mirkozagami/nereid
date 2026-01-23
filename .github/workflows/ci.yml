@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build plugin
+        run: ./gradlew buildPlugin
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-build
+          path: build/distributions/*.zip
+          retention-days: 7
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: build/reports/tests/
+          retention-days: 7
+
+  verify:
+    name: Verify Plugin
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify plugin compatibility
+        run: ./gradlew verifyPlugin
+
+      - name: Upload verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-results
+          path: build/reports/pluginVerifier/
+          retention-days: 7
+
+  compatibility-matrix:
+    name: IDE Compatibility - ${{ matrix.ide }}
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ide: "IntelliJ IDEA 2023.3"
+            type: IC
+            version: "2023.3.8"
+          - ide: "IntelliJ IDEA 2024.1"
+            type: IC
+            version: "2024.1.7"
+          - ide: "IntelliJ IDEA 2024.2"
+            type: IC
+            version: "2024.2.4"
+          - ide: "IntelliJ IDEA 2024.3"
+            type: IC
+            version: "2024.3.1"
+          - ide: "PyCharm 2024.3"
+            type: PC
+            version: "2024.3.1"
+          - ide: "WebStorm 2024.3"
+            type: WS
+            version: "2024.3.1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify against ${{ matrix.ide }}
+        run: |
+          ./gradlew verifyPlugin \
+            -Pplugin.verifier.ide.type=${{ matrix.type }} \
+            -Pplugin.verifier.ide.version=${{ matrix.version }}

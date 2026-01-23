@@ -6,6 +6,7 @@
 
 *A full-featured, free, and open-source Mermaid diagramming plugin for all JetBrains IDEs.*
 
+[![CI](https://github.com/mirkozagami/nereid/actions/workflows/ci.yml/badge.svg)](https://github.com/mirkozagami/nereid/actions/workflows/ci.yml)
 [![Mermaid v11](https://img.shields.io/badge/Mermaid-v11-ff3670?logo=mermaid)](https://mermaid.js.org/)
 [![JetBrains Plugin](https://img.shields.io/badge/JetBrains-Plugin-000000?logo=jetbrains)](https://plugins.jetbrains.com/plugin/29877-nereid)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
@@ -146,6 +147,40 @@ Nereid supports **all 20+ Mermaid diagram types**, including:
 ```
 
 The plugin ZIP will be generated in `build/distributions/`.
+
+### Running Tests
+
+```bash
+./gradlew test
+```
+
+### Verifying Plugin Compatibility
+
+```bash
+./gradlew verifyPlugin
+```
+
+This verifies the plugin against multiple IDE versions (IntelliJ IDEA 2023.3-2024.3, PyCharm, WebStorm).
+
+---
+
+## 🔄 CI/CD
+
+This project uses GitHub Actions for continuous integration and deployment.
+
+### Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| **CI** | Push/PR to master | Builds, tests, and verifies plugin compatibility |
+| **Release** | Version tags (`v*` or `x.y.z`) | Builds, verifies, and publishes to JetBrains Marketplace |
+
+### Releasing a New Version
+
+1. Update `pluginVersion` in `gradle.properties`
+2. Commit and push to master
+3. Create and push a tag: `git tag v1.0.3 && git push origin v1.0.3`
+4. The release workflow will automatically publish to the JetBrains Marketplace
 
 ---
 
