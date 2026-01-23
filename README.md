@@ -182,14 +182,6 @@ This project uses GitHub Actions for continuous integration and deployment.
 3. Create and push a tag: `git tag v1.0.3 && git push origin v1.0.3`
 4. The release workflow will automatically publish to the JetBrains Marketplace
 
-### Required Secrets
-
-For the release workflow to publish to the JetBrains Marketplace, configure this secret in your repository settings:
-
-| Secret | Description |
-|--------|-------------|
-| `JETBRAINS_MARKETPLACE_TOKEN` | API token from [JetBrains Marketplace](https://plugins.jetbrains.com/author/me/tokens) |
-
 ---
 
 ## 🤝 Contributing
