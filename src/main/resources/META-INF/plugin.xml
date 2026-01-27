@@ -91,5 +91,13 @@
         <action id="Mermaid.ExportPngShortcut" class="com.nereid.actions.ExportToPngAction">
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift E"/>
         </action>
+
+        <!-- Diagnostic action in Help menu -->
+        <action id="Mermaid.CollectDiagnostics"
+                class="com.nereid.actions.CollectDiagnosticsAction"
+                text="Collect Mermaid Diagnostic Info"
+                description="Collect diagnostic information for bug reports">
+            <add-to-group group-id="HelpMenu" anchor="before" relative-to-action="About"/>
+        </action>
     </actions>
 </idea-plugin>

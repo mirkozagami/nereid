@@ -49,6 +49,7 @@ class MermaidSplitEditor(
     private val toolbar: MermaidEditorToolbar
 
     private var viewMode: ViewMode = ViewMode.SPLIT
+    private var lastRenderError: String? = null
 
     init {
         previewPanel = MermaidPreviewPanel(this)
@@ -75,7 +76,14 @@ class MermaidSplitEditor(
 
         setupDocumentListener()
         setupExportCallbacks()
+        setupRenderErrorCallback()
         updatePreview()
+    }
+
+    private fun setupRenderErrorCallback() {
+        previewPanel.onRenderError = { error ->
+            lastRenderError = error
+        }
     }
 
     private fun setupExportCallbacks() {
@@ -247,6 +255,12 @@ class MermaidSplitEditor(
     }
 
     override fun getCurrentLocation(): FileEditorLocation? = textEditor.currentLocation
+
+    fun getLastRenderError(): String? = lastRenderError
+
+    fun getDocument(): com.intellij.openapi.editor.Document? {
+        return textEditor.editor?.document
+    }
 
     override fun dispose() {
         Disposer.dispose(previewPanel)
