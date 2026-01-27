@@ -18,6 +18,10 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
+import com.nereid.diagnostics.ActionLogger
+import com.nereid.diagnostics.DiagnosticCollector
+import com.nereid.diagnostics.DiagnosticDialog
+import com.nereid.diagnostics.DiagnosticNotifier
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
 import java.awt.BorderLayout
@@ -49,6 +53,8 @@ class MermaidSplitEditor(
     private val toolbar: MermaidEditorToolbar
 
     private var viewMode: ViewMode = ViewMode.SPLIT
+    private var lastRenderError: String? = null
+    private val diagnosticNotifier = DiagnosticNotifier()
 
     init {
         previewPanel = MermaidPreviewPanel(this)
@@ -68,14 +74,39 @@ class MermaidSplitEditor(
             onSettingsChanged = { previewPanel.applySettings() }
         )
 
-        mainPanel = JPanel(BorderLayout()).apply {
+        val notificationBar = diagnosticNotifier.createNotificationBar()
+
+        val topPanel = JPanel(BorderLayout()).apply {
             add(toolbar.component, BorderLayout.NORTH)
+            add(notificationBar, BorderLayout.SOUTH)
+        }
+
+        mainPanel = JPanel(BorderLayout()).apply {
+            add(topPanel, BorderLayout.NORTH)
             add(splitPane, BorderLayout.CENTER)
         }
 
+        diagnosticNotifier.attachToPanel(mainPanel)
+
         setupDocumentListener()
         setupExportCallbacks()
+        setupRenderErrorCallback()
         updatePreview()
+    }
+
+    private fun setupRenderErrorCallback() {
+        previewPanel.onRenderError = { error ->
+            lastRenderError = error
+        }
+
+        previewPanel.onReportIssue = {
+            val collector = DiagnosticCollector()
+            val bundle = collector.collect(
+                lastRenderError = lastRenderError,
+                diagramSource = textEditor.editor?.document?.text
+            )
+            DiagnosticDialog(project, bundle).show()
+        }
     }
 
     private fun setupExportCallbacks() {
@@ -98,8 +129,15 @@ class MermaidSplitEditor(
                                 val base64Data = dataUrl.removePrefix("data:image/png;base64,")
                                 val imageBytes = Base64.getDecoder().decode(base64Data)
                                 wrapper.file.writeBytes(imageBytes)
+                                ActionLogger.log("Exported PNG to ${wrapper.file.name}")
                             } catch (e: Exception) {
-                                // Silently fail - could show notification in the future
+                                ActionLogger.log("PNG export failed: ${e.message}")
+                                diagnosticNotifier.showError(
+                                    project = project,
+                                    message = "Failed to export PNG: ${e.message}",
+                                    errorContext = "PNG Export",
+                                    diagramSource = textEditor.editor?.document?.text
+                                )
                             }
                         }
                     }
@@ -120,8 +158,15 @@ class MermaidSplitEditor(
                         ApplicationManager.getApplication().invokeLater {
                             try {
                                 wrapper.file.writeText(svgContent)
+                                ActionLogger.log("Exported SVG to ${wrapper.file.name}")
                             } catch (e: Exception) {
-                                // Silently fail - could show notification in the future
+                                ActionLogger.log("SVG export failed: ${e.message}")
+                                diagnosticNotifier.showError(
+                                    project = project,
+                                    message = "Failed to export SVG: ${e.message}",
+                                    errorContext = "SVG Export",
+                                    diagramSource = textEditor.editor?.document?.text
+                                )
                             }
                         }
                     }
@@ -141,9 +186,16 @@ class MermaidSplitEditor(
                         if (image != null) {
                             val transferable = ImageTransferable(image)
                             Toolkit.getDefaultToolkit().systemClipboard.setContents(transferable, null)
+                            ActionLogger.log("Copied PNG to clipboard")
                         }
                     } catch (e: Exception) {
-                        // Silently fail - could show notification in the future
+                        ActionLogger.log("Copy to clipboard failed: ${e.message}")
+                        diagnosticNotifier.showError(
+                            project = project,
+                            message = "Failed to copy to clipboard: ${e.message}",
+                            errorContext = "Clipboard Copy",
+                            diagramSource = textEditor.editor?.document?.text
+                        )
                     }
                 }
             }
@@ -174,6 +226,7 @@ class MermaidSplitEditor(
     }
 
     fun setViewMode(mode: ViewMode) {
+        ActionLogger.log("Switched to view mode: ${mode.name}")
         viewMode = mode
         when (mode) {
             ViewMode.CODE_ONLY -> {
@@ -247,6 +300,12 @@ class MermaidSplitEditor(
     }
 
     override fun getCurrentLocation(): FileEditorLocation? = textEditor.currentLocation
+
+    fun getLastRenderError(): String? = lastRenderError
+
+    fun getDocument(): com.intellij.openapi.editor.Document? {
+        return textEditor.editor?.document
+    }
 
     override fun dispose() {
         Disposer.dispose(previewPanel)
