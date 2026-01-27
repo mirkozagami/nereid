@@ -33,7 +33,7 @@ class DiagnosticCollector {
 
     fun collectEnvironmentInfo(): EnvironmentInfo {
         val appInfo = ApplicationInfo.getInstance()
-        val pluginId = PluginId.getId("com.nereid")
+        val pluginId = PluginId.getId("com.nereid.mermaid")
         val plugin = PluginManagerCore.getPlugin(pluginId)
 
         val jbCefAvailable = try {
