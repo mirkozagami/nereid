@@ -35,6 +35,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     var onRenderSuccess: (() -> Unit)? = null
     var onRenderError: ((String) -> Unit)? = null
     var onZoomChanged: ((Double) -> Unit)? = null
+    var onReportIssue: (() -> Unit)? = null
 
     // Context menu callbacks
     var onExportPng: (() -> Unit)? = null
@@ -132,6 +133,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                     val zoom = result.removePrefix("zoom:").toDoubleOrNull()
                     if (zoom != null) onZoomChanged?.invoke(zoom)
                 }
+                result == "report" -> onReportIssue?.invoke()
             }
             null
         }
@@ -167,6 +169,9 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                 },
                 onSvgExport: function(svgContent) {
                     ${svgExportQuery.inject("svgContent")}
+                },
+                onReportIssue: function() {
+                    ${jsQuery.inject("'report'")}
                 }
             };
         """.trimIndent()
@@ -212,7 +217,13 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         border-radius: 4px;
                         color: #c00;
                         font-size: 13px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
                     }
+                    #error-message { flex: 1; }
+                    #report-link { font-size: 12px; color: #666; text-align: right; }
+                    #report-link:hover { color: #333; }
                     .hidden { display: none !important; }
                     body.dark { --background-color: #1e1e1e; }
                     body.dark #error {
@@ -220,13 +231,18 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         border-color: #5a2a2a;
                         color: #faa;
                     }
+                    body.dark #report-link { color: #aaa; }
+                    body.dark #report-link:hover { color: #fff; }
                 </style>
                 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
             </head>
             <body>
                 <div id="container">
                     <div id="diagram"></div>
-                    <div id="error" class="hidden"></div>
+                    <div id="error" class="hidden">
+                        <span id="error-message"></span>
+                        <a href="#" id="report-link" onclick="reportIssue(); return false;">Report this issue</a>
+                    </div>
                 </div>
                 <script>
                     let currentZoom = 1;
@@ -261,11 +277,12 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                                 window.javaBridge.onRenderSuccess();
                             }
                         } catch (e) {
-                            error.textContent = e.message || 'Failed to render diagram';
+                            const errorMessage = e.message || 'Failed to render diagram';
+                            document.getElementById('error-message').textContent = errorMessage;
                             error.classList.remove('hidden');
 
                             if (window.javaBridge) {
-                                window.javaBridge.onRenderError(e.message || 'Unknown error');
+                                window.javaBridge.onRenderError(errorMessage);
                             }
                         }
                     };
@@ -459,6 +476,12 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                             window.javaBridge.onSvgExport(svgData);
                         }
                     };
+
+                    function reportIssue() {
+                        if (window.javaBridge) {
+                            window.javaBridge.onReportIssue();
+                        }
+                    }
                 </script>
             </body>
             </html>

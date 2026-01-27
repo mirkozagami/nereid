@@ -10,7 +10,10 @@
 <body>
     <div id="container">
         <div id="diagram"></div>
-        <div id="error" class="hidden"></div>
+        <div id="error" class="hidden">
+            <span id="error-message"></span>
+            <a href="#" id="report-link" onclick="reportIssue(); return false;">Report this issue</a>
+        </div>
     </div>
 
     <script>
@@ -46,11 +49,12 @@
                     window.javaBridge.onRenderSuccess();
                 }
             } catch (e) {
-                error.textContent = e.message || 'Failed to render diagram';
+                const errorMessage = e.message || 'Failed to render diagram';
+                document.getElementById('error-message').textContent = errorMessage;
                 error.classList.remove('hidden');
 
                 if (window.javaBridge) {
-                    window.javaBridge.onRenderError(e.message || 'Unknown error');
+                    window.javaBridge.onRenderError(errorMessage);
                 }
             }
         };
@@ -132,6 +136,12 @@
             isDragging = false;
             document.body.style.cursor = 'grab';
         });
+
+        function reportIssue() {
+            if (window.javaBridge) {
+                window.javaBridge.onReportIssue();
+            }
+        }
     </script>
 </body>
 </html>

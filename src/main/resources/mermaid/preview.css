@@ -39,6 +39,23 @@ body {
     border-radius: 4px;
     color: #c00;
     font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#error-message {
+    flex: 1;
+}
+
+#report-link {
+    font-size: 12px;
+    color: #666;
+    text-align: right;
+}
+
+#report-link:hover {
+    color: #333;
 }
 
 .hidden {
@@ -54,4 +71,12 @@ body.dark #error {
     background: #3a1a1a;
     border-color: #5a2a2a;
     color: #faa;
+}
+
+body.dark #report-link {
+    color: #aaa;
+}
+
+body.dark #report-link:hover {
+    color: #fff;
 }

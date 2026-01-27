@@ -19,6 +19,8 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
 import com.nereid.diagnostics.ActionLogger
+import com.nereid.diagnostics.DiagnosticCollector
+import com.nereid.diagnostics.DiagnosticDialog
 import com.nereid.diagnostics.DiagnosticNotifier
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
@@ -95,6 +97,15 @@ class MermaidSplitEditor(
     private fun setupRenderErrorCallback() {
         previewPanel.onRenderError = { error ->
             lastRenderError = error
+        }
+
+        previewPanel.onReportIssue = {
+            val collector = DiagnosticCollector()
+            val bundle = collector.collect(
+                lastRenderError = lastRenderError,
+                diagramSource = textEditor.editor?.document?.text
+            )
+            DiagnosticDialog(project, bundle).show()
         }
     }
 
