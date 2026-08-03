@@ -5,7 +5,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.util.Alarm
-import com.intellij.util.AlarmFactory
 
 class DebouncedDocumentListener(
     private val delayMs: Int = 300,
@@ -13,7 +12,9 @@ class DebouncedDocumentListener(
     parentDisposable: Disposable
 ) : DocumentListener {
 
-    private val alarm: Alarm = AlarmFactory.getInstance().create(Alarm.ThreadToUse.SWING_THREAD, parentDisposable)
+    // AlarmFactory is deprecated and scheduled for removal; the Alarm constructor is
+    // the direct replacement and behaves identically.
+    private val alarm: Alarm = Alarm(Alarm.ThreadToUse.SWING_THREAD, parentDisposable)
 
     override fun documentChanged(event: DocumentEvent) {
         alarm.cancelAllRequests()
