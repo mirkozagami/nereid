@@ -74,10 +74,13 @@ intellijPlatform {
                     sinceBuild = "253"
                 }
 
-                // Cross-IDE spot checks against other JetBrains products
+                // Cross-IDE spot checks against other JetBrains products.
+                // PyCharm Community (PyCharmCommunity/PC) is deliberately absent: the
+                // Gradle plugin cannot resolve an installer for it at any version, so it
+                // fails before downloading. The unified PyCharm type resolves correctly.
                 select {
                     types = listOf(
-                        IntelliJPlatformType.PyCharmCommunity,
+                        IntelliJPlatformType.PyCharm,
                         IntelliJPlatformType.WebStorm,
                     )
                     channels = listOf(ProductRelease.Channel.RELEASE)

@@ -106,9 +106,12 @@ jobs:
           - ide: "WebStorm 2026.2"
             type: WS
             version: "2026.2"
-          - ide: "PyCharm 2025.2"
-            type: PC
-            version: "2025.2"
+          # PyCharm Community (PC) is intentionally not used: the Gradle plugin
+          # cannot resolve an installer for it at ANY version, 2024.3 included.
+          # PY (unified PyCharm) resolves fine and gives the same coverage.
+          - ide: "PyCharm 2026.2"
+            type: PY
+            version: "2026.2"
 
     steps:
       - name: Free Disk Space
