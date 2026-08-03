@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 17
+          java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -49,7 +49,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 17
+          java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -71,26 +71,44 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      # One IDE per job: each IDE is a 1-2 GB download, so verifying them in a
+      # single job exhausts the runner's disk. IntelliJ IDEA Community stopped
+      # shipping as a separate product after 2025.2, so 2025.3+ uses IU.
       matrix:
         include:
           - ide: "IntelliJ IDEA 2023.3"
             type: IC
-            version: "2023.3.8"
+            version: "2023.3.8"     # 233 - minimum supported (sinceBuild)
           - ide: "IntelliJ IDEA 2024.1"
             type: IC
-            version: "2024.1.7"
+            version: "2024.1.7"     # 241
           - ide: "IntelliJ IDEA 2024.2"
             type: IC
-            version: "2024.2.4"
+            version: "2024.2.6"     # 242
           - ide: "IntelliJ IDEA 2024.3"
             type: IC
-            version: "2024.3.1"
-          - ide: "PyCharm 2024.3"
-            type: PC
-            version: "2024.3.1"
-          - ide: "WebStorm 2024.3"
+            version: "2024.3.7.1"   # 243
+          - ide: "IntelliJ IDEA 2025.1"
+            type: IC
+            version: "2025.1.7.2"   # 251
+          - ide: "IntelliJ IDEA 2025.2"
+            type: IC
+            version: "2025.2.6.3"   # 252 - last Community release
+          - ide: "IntelliJ IDEA 2025.3"
+            type: IU
+            version: "2025.3"       # 253 - unified IDEA from here on
+          - ide: "IntelliJ IDEA 2026.1"
+            type: IU
+            version: "2026.1"       # 261
+          - ide: "IntelliJ IDEA 2026.2"
+            type: IU
+            version: "2026.2"       # 262 - latest stable
+          - ide: "WebStorm 2026.2"
             type: WS
-            version: "2024.3.1"
+            version: "2026.2"
+          - ide: "PyCharm 2025.2"
+            type: PC
+            version: "2025.2"
 
     steps:
       - name: Free Disk Space
@@ -111,7 +129,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 17
+          java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
