@@ -13,7 +13,11 @@ class MermaidSettingsConfigurable : Configurable {
     private var panel: DialogPanel? = null
     private val settings = MermaidSettings.getInstance()
 
-    override fun getDisplayName(): String = "Mermaid"
+    // "Nereid" is the product; Mermaid is the diagram language it supports. User-facing
+    // labels use the product name, matching displayName in plugin.xml. Note the internal
+    // @State(name = "MermaidSettings") key must NOT be renamed -- it is the storage key
+    // in users' options/ files, and changing it would silently reset saved settings.
+    override fun getDisplayName(): String = "Nereid"
 
     override fun createComponent(): JComponent {
         panel = panel {
