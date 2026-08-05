@@ -146,9 +146,33 @@ class MermaidSplitEditor(
                                 )
                             }
                         }
+                    } else {
+                        reportPngFailure("Failed to export PNG", "PNG Export", dataUrl)
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Surfaces a failed PNG export. The preview reports problems as 'error:<reason>' and
+     * used to send a bare empty string; either way the result was previously dropped on
+     * the floor, so export failures were completely silent.
+     */
+    private fun reportPngFailure(message: String, errorContext: String, dataUrl: String) {
+        val reason = when {
+            dataUrl.startsWith("error:") -> dataUrl.removePrefix("error:")
+            dataUrl.isEmpty() -> "the preview returned no image data"
+            else -> "unexpected image data format"
+        }
+        ActionLogger.log("$errorContext failed: $reason")
+        ApplicationManager.getApplication().invokeLater {
+            diagnosticNotifier.showError(
+                project = project,
+                message = "$message: $reason",
+                errorContext = errorContext,
+                diagramSource = textEditor.editor?.document?.text
+            )
         }
     }
 
@@ -176,6 +200,16 @@ class MermaidSplitEditor(
                                 )
                             }
                         }
+                    } else {
+                        ActionLogger.log("SVG Export failed: the preview returned no SVG content")
+                        ApplicationManager.getApplication().invokeLater {
+                            diagnosticNotifier.showError(
+                                project = project,
+                                message = "Failed to export SVG: the preview returned no SVG content",
+                                errorContext = "SVG Export",
+                                diagramSource = textEditor.editor?.document?.text
+                            )
+                        }
                     }
                 }
             }
@@ -194,6 +228,8 @@ class MermaidSplitEditor(
                             val transferable = ImageTransferable(image)
                             Toolkit.getDefaultToolkit().systemClipboard.setContents(transferable, null)
                             ActionLogger.log("Copied PNG to clipboard")
+                        } else {
+                            error("the exported PNG data could not be decoded")
                         }
                     } catch (e: Exception) {
                         ActionLogger.log("Copy to clipboard failed: ${e.message}")
@@ -205,6 +241,8 @@ class MermaidSplitEditor(
                         )
                     }
                 }
+            } else {
+                reportPngFailure("Failed to copy to clipboard", "Clipboard Copy", dataUrl)
             }
         }
     }
