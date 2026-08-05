@@ -1,12 +1,16 @@
 package com.nereid.settings
 
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 
 class MermaidSettingsConfigurable : Configurable {
 
-    private var panel: JComponent? = null
+    // Must stay DialogPanel, not JComponent: the bindXxx() bindings only write back
+    // when DialogPanel.apply() is called, and typing this as JComponent hides the
+    // apply()/reset()/isModified() methods that make the panel work at all.
+    private var panel: DialogPanel? = null
     private val settings = MermaidSettings.getInstance()
 
     override fun getDisplayName(): String = "Mermaid"
@@ -94,13 +98,21 @@ class MermaidSettingsConfigurable : Configurable {
         return panel!!
     }
 
-    override fun isModified(): Boolean = panel != null
+    // The Kotlin UI DSL does NOT write bound properties back on its own -- these three
+    // must delegate to the DialogPanel. Previously apply() was empty, so nothing in this
+    // page was ever saved, and isModified() returned `panel != null`, leaving Apply
+    // permanently enabled while doing nothing.
+    override fun isModified(): Boolean = panel?.isModified() ?: false
 
     override fun apply() {
-        // Settings are bound directly via bindXxx
+        panel?.apply()
     }
 
     override fun reset() {
-        // Reset to current settings
+        panel?.reset()
+    }
+
+    override fun disposeUIResources() {
+        panel = null
     }
 }
