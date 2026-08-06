@@ -2,6 +2,7 @@ package com.nereid.spliteditor
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionGroup
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
@@ -310,6 +311,11 @@ class MermaidSplitEditor(
         override fun actionPerformed(e: AnActionEvent) {
             setViewMode(mode)
         }
+
+        // EDT rather than BGT: update() only reads the presentation and a field on the
+        // enclosing editor, never the data context. Declared explicitly so the platform
+        // does not fall back to its deprecated default.
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
         override fun update(e: AnActionEvent) {
             Toggleable.setSelected(e.presentation, viewMode == mode)
