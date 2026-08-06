@@ -1,12 +1,12 @@
 package com.nereid.settings
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
 import java.awt.Dimension
 import javax.swing.JComponent
-import javax.swing.JPanel
 
 class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
 
@@ -28,6 +28,16 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
     private var customMermaidJsUrl = settings.customMermaidJsUrl
     private var securityMode = settings.securityMode
 
+    // Retained so doOKAction() can apply() them. The bindXxx() bindings below only copy
+    // the UI values into the fields above when DialogPanel.apply() is called; without
+    // that, doOKAction() writes the untouched initial values straight back and nothing
+    // the user changed is saved.
+    //
+    // MUST be declared above the init block: DialogWrapper.init() synchronously calls
+    // createCenterPanel(), and Kotlin initialises properties in declaration order, so
+    // declaring this afterwards leaves it null when createCenterPanel() runs.
+    private val tabPanels = mutableListOf<DialogPanel>()
+
     init {
         title = "Nereid Settings"
         init()
@@ -36,15 +46,21 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
     override fun createCenterPanel(): JComponent {
         val tabbedPane = JBTabbedPane()
 
-        tabbedPane.addTab("General", createGeneralTab())
-        tabbedPane.addTab("Export", createExportTab())
-        tabbedPane.addTab("Advanced", createAdvancedTab())
+        val general = createGeneralTab()
+        val export = createExportTab()
+        val advanced = createAdvancedTab()
+        tabPanels.clear()
+        tabPanels.addAll(listOf(general, export, advanced))
+
+        tabbedPane.addTab("General", general)
+        tabbedPane.addTab("Export", export)
+        tabbedPane.addTab("Advanced", advanced)
 
         tabbedPane.preferredSize = Dimension(450, 350)
         return tabbedPane
     }
 
-    private fun createGeneralTab(): JPanel {
+    private fun createGeneralTab(): DialogPanel {
         return panel {
             group("Editor Behavior") {
                 row("Preview update:") {
@@ -79,7 +95,7 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
         }
     }
 
-    private fun createExportTab(): JPanel {
+    private fun createExportTab(): DialogPanel {
         return panel {
             group("Export Settings") {
                 row("Default format:") {
@@ -99,7 +115,7 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
         }
     }
 
-    private fun createAdvancedTab(): JPanel {
+    private fun createAdvancedTab(): DialogPanel {
         return panel {
             group("Theme & Appearance") {
                 row("Theme mode:") {
@@ -138,6 +154,11 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
     }
 
     override fun doOKAction() {
+        // Push the UI values into the backing fields first. Without this the
+        // assignments below just write the untouched initial values back, so nothing
+        // the user changed in this dialog was ever saved.
+        tabPanels.forEach { it.apply() }
+
         settings.previewUpdateMode = previewUpdateMode
         settings.debounceDelayMs = debounceDelayMs
         settings.defaultViewMode = defaultViewMode
