@@ -1,11 +1,10 @@
 package com.nereid.preview
 
-import com.intellij.ide.ui.LafManager
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.ui.JBColor
 import com.nereid.settings.MermaidSettings
-import javax.swing.UIManager
 
 class ThemeManager(private val parentDisposable: Disposable) {
 
@@ -22,12 +21,11 @@ class ThemeManager(private val parentDisposable: Disposable) {
 
     fun isDarkTheme(): Boolean {
         return when (settings.themeMode) {
-            MermaidSettings.ThemeMode.FOLLOW_IDE -> {
-                val laf = LafManager.getInstance().currentLookAndFeel
-                laf?.name?.lowercase()?.contains("dark") == true ||
-                    laf?.name?.lowercase()?.contains("darcula") == true ||
-                    UIManager.getBoolean("ui.dark")
-            }
+            // LafManager.getCurrentLookAndFeel() is deprecated and scheduled for removal.
+            // JBColor.isBright() reports the same thing without matching on theme names,
+            // which was fragile anyway: it only caught themes with "dark"/"darcula" in
+            // the title, missing custom dark themes named anything else.
+            MermaidSettings.ThemeMode.FOLLOW_IDE -> !JBColor.isBright()
             MermaidSettings.ThemeMode.MERMAID_THEME -> {
                 settings.mermaidTheme in listOf("dark")
             }

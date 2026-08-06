@@ -1,8 +1,7 @@
 package com.nereid.diagnostics
 
-import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.ide.plugins.cl.PluginAwareClassLoader
 import com.intellij.openapi.application.ApplicationInfo
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.ui.jcef.JBCefApp
 import com.nereid.settings.MermaidSettings
@@ -33,8 +32,7 @@ class DiagnosticCollector {
 
     fun collectEnvironmentInfo(): EnvironmentInfo {
         val appInfo = ApplicationInfo.getInstance()
-        val pluginId = PluginId.getId("com.nereid.mermaid")
-        val plugin = PluginManagerCore.getPlugin(pluginId)
+        val pluginVersion = resolvePluginVersion()
 
         val jbCefAvailable = try {
             JBCefApp.isSupported()
@@ -54,13 +52,29 @@ class DiagnosticCollector {
         return EnvironmentInfo(
             ideName = appInfo.fullApplicationName,
             ideVersion = appInfo.fullVersion,
-            pluginVersion = plugin?.version ?: "Unknown",
+            pluginVersion = pluginVersion,
             osName = SystemInfo.OS_NAME,
             osVersion = SystemInfo.OS_VERSION,
             javaVersion = SystemInfo.JAVA_VERSION,
             jbCefAvailable = jbCefAvailable,
             jbCefVersion = jbCefVersion
         )
+    }
+
+    /**
+     * Resolves this plugin's own version.
+     *
+     * As of 2026.2 every `PluginManager` lookup (`PluginManagerCore.getPlugin`,
+     * `findEnabledPlugin`, `getPluginByClass`) is `@ApiStatus.Internal` and fails plugin
+     * verification. The public replacement, `PluginDetailsService`, only exists in
+     * 2026.2+, so it is unusable while we still build against 2023.3. This classloader
+     * route is the cross-version workaround JetBrains recommends in the interim.
+     *
+     * Returns "Unknown" under unit tests, which use a non-plugin classloader.
+     */
+    private fun resolvePluginVersion(): String {
+        val classLoader = DiagnosticCollector::class.java.classLoader
+        return (classLoader as? PluginAwareClassLoader)?.pluginDescriptor?.version ?: "Unknown"
     }
 
     fun collectPluginSettings(): Map<String, String> {

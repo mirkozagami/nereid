@@ -117,6 +117,12 @@ class MermaidSplitEditor(
 
     fun triggerExportPng() {
         ApplicationManager.getApplication().invokeLater {
+            // NOTE: the varargs constructor is deprecated in favour of
+            // FileSaverDescriptor(title, description).withExtensionFilter(...), but
+            // withExtensionFilter() does not exist in 2023.3, our sinceBuild floor.
+            // It is deprecated only (not scheduled for removal) and the sole downside is
+            // a wrong label in the native Windows dialog, so it stays until we raise
+            // sinceBuild. See build.gradle.kts.
             val descriptor = FileSaverDescriptor("Export as PNG", "Choose where to save the PNG file", "png")
             val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
             val result = dialog.save(file.parent, file.nameWithoutExtension + ".png")
@@ -148,6 +154,7 @@ class MermaidSplitEditor(
 
     fun triggerExportSvg() {
         ApplicationManager.getApplication().invokeLater {
+            // See the note in triggerExportPng() about this deprecated constructor.
             val descriptor = FileSaverDescriptor("Export as SVG", "Choose where to save the SVG file", "svg")
             val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
             val result = dialog.save(file.parent, file.nameWithoutExtension + ".svg")
