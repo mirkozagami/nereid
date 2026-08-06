@@ -91,6 +91,22 @@ intellijPlatform {
     }
 }
 
+// Sandboxed IDE launchers for manual testing. `runIde` uses the compile target
+// (2023.3); these run the plugin on newer IDEs, where the platform APIs it relies
+// on have actually changed. Development only -- no effect on the published plugin.
+intellijPlatformTesting {
+    runIde {
+        register("runIde2026") {
+            type = IntelliJPlatformType.IntellijIdea
+            version = "2026.2"
+        }
+        register("runIde2025") {
+            type = IntelliJPlatformType.IntellijIdea
+            version = "2025.3"
+        }
+    }
+}
+
 tasks {
     test {
         // Using JUnit 4 with IntelliJ Platform test framework

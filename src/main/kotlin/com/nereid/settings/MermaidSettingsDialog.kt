@@ -29,7 +29,7 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
     private var securityMode = settings.securityMode
 
     init {
-        title = "Mermaid Settings"
+        title = "Nereid Settings"
         init()
     }
 

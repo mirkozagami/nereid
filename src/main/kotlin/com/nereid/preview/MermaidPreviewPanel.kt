@@ -5,6 +5,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
+import com.nereid.settings.MermaidSettings
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.callback.CefContextMenuParams
@@ -394,10 +395,22 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         document.body.style.cursor = 'grab';
                     });
 
-                    window.exportAsPng = function() {
+                    // PNG export reports failures as 'error:<reason>' so the Kotlin side
+                    // can surface them. Previously every failure path sent an empty
+                    // string, which was silently discarded.
+                    function pngExportFailed(reason) {
+                        if (window.javaBridge) {
+                            window.javaBridge.onPngExport('error:' + reason);
+                        }
+                    }
+
+                    // scale / transparent come from the plugin settings
+                    // (pngScaleFactor, pngTransparentBackground), which were previously
+                    // ignored here: the scale was hardcoded and a backdrop was always painted.
+                    window.exportAsPng = function(scale, transparent) {
                         const svg = document.querySelector('#diagram svg');
                         if (!svg) {
-                            if (window.javaBridge) window.javaBridge.onPngExport('');
+                            pngExportFailed('no diagram is currently rendered');
                             return;
                         }
 
@@ -436,30 +449,44 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                         svgClone.setAttribute('height', height);
 
                         const svgData = new XMLSerializer().serializeToString(svgClone);
-                        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                        const url = URL.createObjectURL(svgBlob);
+
+                        // A data URL rather than a blob URL. This document is loaded via
+                        // loadHTML(), and blob URLs minted from its opaque origin can fail
+                        // to load in an <img> -- which used to abort the export silently.
+                        const url = 'data:image/svg+xml;base64,' +
+                            btoa(unescape(encodeURIComponent(svgData)));
 
                         const img = new Image();
                         img.onload = function() {
-                            const canvas = document.createElement('canvas');
-                            const scale = 2; // Higher resolution
-                            canvas.width = width * scale;
-                            canvas.height = height * scale;
-                            const ctx = canvas.getContext('2d');
-                            ctx.fillStyle = getComputedStyle(document.getElementById('container')).backgroundColor || '#ffffff';
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
-                            ctx.scale(scale, scale);
-                            ctx.drawImage(img, 0, 0, width, height);
-                            URL.revokeObjectURL(url);
+                            try {
+                                const exportScale = (typeof scale === 'number' && scale > 0) ? scale : 2;
+                                const canvas = document.createElement('canvas');
+                                canvas.width = width * exportScale;
+                                canvas.height = height * exportScale;
+                                const ctx = canvas.getContext('2d');
 
-                            const dataUrl = canvas.toDataURL('image/png');
-                            if (window.javaBridge) {
-                                window.javaBridge.onPngExport(dataUrl);
+                                // A canvas starts fully transparent, so only paint a
+                                // backdrop when a transparent PNG was NOT requested.
+                                if (!transparent) {
+                                    ctx.fillStyle = getComputedStyle(document.getElementById('container')).backgroundColor || '#ffffff';
+                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                }
+
+                                ctx.scale(exportScale, exportScale);
+                                ctx.drawImage(img, 0, 0, width, height);
+
+                                // Throws SecurityError if drawing the SVG tainted the
+                                // canvas, e.g. via <foreignObject> in Mermaid labels.
+                                const dataUrl = canvas.toDataURL('image/png');
+                                if (window.javaBridge) {
+                                    window.javaBridge.onPngExport(dataUrl);
+                                }
+                            } catch (e) {
+                                pngExportFailed(e && e.name ? e.name + ': ' + e.message : String(e));
                             }
                         };
                         img.onerror = function() {
-                            URL.revokeObjectURL(url);
-                            if (window.javaBridge) window.javaBridge.onPngExport('');
+                            pngExportFailed('the rendered SVG could not be loaded as an image');
                         };
                         img.src = url;
                     };
@@ -543,7 +570,15 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     fun exportAsPng(callback: (String) -> Unit) {
         if (isLoaded) {
             pngExportCallback = callback
-            browser.cefBrowser.executeJavaScript("window.exportAsPng();", browser.cefBrowser.url, 0)
+            val settings = MermaidSettings.getInstance()
+            // Read at export time so changing the settings takes effect immediately.
+            val scale = settings.pngScaleFactor.coerceIn(1, 8)
+            val transparent = settings.pngTransparentBackground
+            browser.cefBrowser.executeJavaScript(
+                "window.exportAsPng($scale, $transparent);",
+                browser.cefBrowser.url,
+                0
+            )
         } else {
             callback("")
         }
