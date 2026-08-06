@@ -15,3 +15,11 @@ build/
 
 # Documentation (local only)
 docs/
+
+# AI assistant context and skills (local only, never pushed)
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.claude/
+.cursor/
