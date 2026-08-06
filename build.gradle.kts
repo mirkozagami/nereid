@@ -11,6 +11,37 @@ plugins {
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
+/**
+ * Renders the most recent CHANGELOG.md section as the plugin's change notes.
+ *
+ * Reads everything between the first `## [x.y.z]` heading and the next `##` heading,
+ * turning top-level `- ` bullets into an HTML list. Change notes must be HTML, and the
+ * Marketplace rejects unescaped markup, so text is escaped. Returns an empty string if
+ * the file or section is missing, which is valid -- change notes are optional.
+ */
+fun latestChangeNotes(): String {
+    val changelog = file("CHANGELOG.md")
+    if (!changelog.exists()) return ""
+
+    val lines = changelog.readLines()
+    val start = lines.indexOfFirst { it.startsWith("## [") }
+    if (start < 0) return ""
+    val rest = lines.drop(start + 1)
+    val relativeEnd = rest.indexOfFirst { it.startsWith("## ") }
+    val body = if (relativeEnd < 0) rest else rest.take(relativeEnd)
+
+    fun String.escapeHtml() = replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    // Strip the ** markers Keep a Changelog uses for emphasis; they are not HTML.
+    fun String.stripEmphasis() = replace("**", "")
+
+    val items = body
+        .map { it.trim() }
+        .filter { it.startsWith("- ") }
+        .map { "<li>${it.removePrefix("- ").stripEmphasis().escapeHtml()}</li>" }
+
+    return if (items.isEmpty()) "" else items.joinToString("", "<ul>", "</ul>")
+}
+
 repositories {
     mavenCentral()
     intellijPlatform {
@@ -36,6 +67,9 @@ intellijPlatform {
     pluginConfiguration {
         name = providers.gradleProperty("pluginName")
         version = providers.gradleProperty("pluginVersion")
+        // "What's new" on the Marketplace, taken from the top section of CHANGELOG.md so
+        // release notes are not maintained in two places.
+        changeNotes = latestChangeNotes()
         ideaVersion {
             sinceBuild = "233"
             untilBuild = provider { null }

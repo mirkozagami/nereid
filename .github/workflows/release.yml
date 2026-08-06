@@ -29,7 +29,9 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 17
+          # Must match ci.yml. The build runs Gradle 9.5.1 and verifies against IDEs up
+          # to 2026.2; 17 is untested against that toolchain.
+          java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -53,8 +55,14 @@ jobs:
       - name: Build plugin
         run: ./gradlew buildPlugin
 
-      - name: Verify plugin
-        run: ./gradlew verifyPlugin
+      - name: Verify plugin (sinceBuild floor and latest)
+        # One IDE per invocation. A bare `verifyPlugin` resolves the full suite -- every
+        # release from 233 to 262 across three products -- and exhausts the runner's disk,
+        # which is why ci.yml sharded it across jobs. That matrix already runs on every
+        # push to master, so this is a final gate on the tagged commit, not full coverage.
+        run: |
+          ./gradlew verifyPlugin -Pplugin.verifier.ide.type=IC -Pplugin.verifier.ide.version=2023.3.8
+          ./gradlew verifyPlugin -Pplugin.verifier.ide.type=IU -Pplugin.verifier.ide.version=2026.2
 
       - name: Publish to JetBrains Marketplace
         env:
@@ -67,6 +75,8 @@ jobs:
           name: v${{ steps.version.outputs.version }}
           body: |
             ## Nereid v${{ steps.version.outputs.version }}
+
+            See [CHANGELOG.md](https://github.com/mirkozagami/nereid/blob/master/CHANGELOG.md) for what changed in this release.
 
             ### Installation
             - **JetBrains Marketplace**: Search for "Nereid" in your IDE's plugin settings
