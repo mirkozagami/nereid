@@ -47,6 +47,11 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         private const val MENU_ID_EXPORT_PNG = 26501
         private const val MENU_ID_EXPORT_SVG = 26502
         private const val MENU_ID_COPY_PNG = 26503
+
+        internal const val PREVIEW_TEMPLATE_RESOURCE = "/mermaid/preview.html"
+
+        /** Replaced with the bundled Mermaid source before the page is loaded. */
+        internal const val MERMAID_LIBRARY_PLACEHOLDER = "__MERMAID_LIBRARY__"
     }
 
     init {
@@ -179,350 +184,37 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
     }
 
+    /**
+     * Loads the preview page from `preview.html`, substituting the bundled Mermaid
+     * library into it.
+     *
+     * The page lives in a real .html resource rather than a Kotlin string so its ~265
+     * lines of JavaScript get syntax highlighting, inspection and template literals --
+     * inside a Kotlin raw string, `${'$'}{...}` collides with Kotlin interpolation, which is
+     * why the page previously had to build strings by concatenation.
+     *
+     * The library is substituted rather than referenced with a relative <script src>
+     * because loadHTML() gives the document an opaque origin with nothing to resolve
+     * relative URLs against. See MermaidBundle.
+     */
     private fun loadPreviewHtml() {
-        val html = """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Mermaid Preview</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        overflow: hidden;
-                        cursor: grab;
-                    }
-                    #container {
-                        width: 100vw;
-                        height: 100vh;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        background: var(--background-color, #ffffff);
-                    }
-                    #diagram {
-                        transform-origin: center center;
-                        transition: transform 0.1s ease-out;
-                    }
-                    #diagram svg { max-width: none; }
-                    #error {
-                        position: absolute;
-                        bottom: 20px;
-                        left: 20px;
-                        right: 20px;
-                        padding: 12px 16px;
-                        background: #fee;
-                        border: 1px solid #fcc;
-                        border-radius: 4px;
-                        color: #c00;
-                        font-size: 13px;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 8px;
-                    }
-                    #error-message { flex: 1; }
-                    #report-link { font-size: 12px; color: #666; text-align: right; }
-                    #report-link:hover { color: #333; }
-                    .hidden { display: none !important; }
-                    body.dark { --background-color: #1e1e1e; }
-                    body.dark #error {
-                        background: #3a1a1a;
-                        border-color: #5a2a2a;
-                        color: #faa;
-                    }
-                    body.dark #report-link { color: #aaa; }
-                    body.dark #report-link:hover { color: #fff; }
-                </style>
-                <!--
-                  Mermaid is inlined from the plugin bundle, not fetched from a CDN.
-                  A CDN made the preview require internet access, and the unpinned
-                  'mermaid@11' range meant the version changed under users with no
-                  plugin release. See MermaidBundle for why it is inlined rather than
-                  referenced with a relative <script src>.
-                -->
-                <script>${MermaidBundle.script}</script>
-            </head>
-            <body>
-                <div id="container">
-                    <div id="diagram"></div>
-                    <div id="error" class="hidden">
-                        <span id="error-message"></span>
-                        <a href="#" id="report-link" onclick="reportIssue(); return false;">Report this issue</a>
-                    </div>
-                </div>
-                <script>
-                    let currentZoom = 1;
-                    let panX = 0;
-                    let panY = 0;
-                    let isDragging = false;
-                    let lastX, lastY;
-
-                    mermaid.initialize({
-                        startOnLoad: false,
-                        theme: 'default',
-                        securityLevel: 'strict'
-                    });
-
-                    window.renderDiagram = async function(source, theme) {
-                        const diagram = document.getElementById('diagram');
-                        const error = document.getElementById('error');
-
-                        try {
-                            if (theme) {
-                                mermaid.initialize({ theme: theme, securityLevel: 'strict' });
-                            }
-
-                            const { svg } = await mermaid.render('mermaid-diagram', source);
-                            diagram.innerHTML = svg;
-                            diagram.classList.remove('hidden');
-                            error.classList.add('hidden');
-
-                            applyTransform();
-
-                            if (window.javaBridge) {
-                                window.javaBridge.onRenderSuccess();
-                            }
-                        } catch (e) {
-                            const errorMessage = e.message || 'Failed to render diagram';
-                            document.getElementById('error-message').textContent = errorMessage;
-                            error.classList.remove('hidden');
-
-                            if (window.javaBridge) {
-                                window.javaBridge.onRenderError(errorMessage);
-                            }
-                        }
-                    };
-
-                    window.setZoom = function(zoom) {
-                        currentZoom = zoom;
-                        applyTransform();
-                    };
-
-                    window.resetView = function() {
-                        currentZoom = 1;
-                        panX = 0;
-                        panY = 0;
-                        applyTransform();
-                    };
-
-                    window.fitToView = function() {
-                        const diagram = document.getElementById('diagram');
-                        const svg = diagram.querySelector('svg');
-                        if (!svg) return;
-
-                        // Reset transform first to get accurate natural dimensions
-                        currentZoom = 1;
-                        panX = 0;
-                        panY = 0;
-                        applyTransform();
-
-                        // Wait for layout to settle, then calculate fit
-                        requestAnimationFrame(function() {
-                            const containerRect = document.getElementById('container').getBoundingClientRect();
-                            const svgRect = svg.getBoundingClientRect();
-
-                            // Add small padding (5%) around the diagram
-                            const padding = 0.95;
-                            const scaleX = (containerRect.width * padding) / svgRect.width;
-                            const scaleY = (containerRect.height * padding) / svgRect.height;
-
-                            // Use the smaller scale to fit both dimensions, allow zoom > 1 for small diagrams
-                            currentZoom = Math.min(scaleX, scaleY);
-                            panX = 0;
-                            panY = 0;
-                            applyTransform();
-
-                            if (window.javaBridge) {
-                                window.javaBridge.onZoomChanged(currentZoom);
-                            }
-                        });
-                    };
-
-                    function applyTransform() {
-                        const diagram = document.getElementById('diagram');
-                        diagram.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentZoom + ')';
-                    }
-
-                    window.zoomIn = function() {
-                        currentZoom = Math.min(10, currentZoom * 1.25);
-                        applyTransform();
-                        if (window.javaBridge) {
-                            window.javaBridge.onZoomChanged(currentZoom);
-                        }
-                    };
-
-                    window.zoomOut = function() {
-                        currentZoom = Math.max(0.05, currentZoom / 1.25);
-                        applyTransform();
-                        if (window.javaBridge) {
-                            window.javaBridge.onZoomChanged(currentZoom);
-                        }
-                    };
-
-                    document.addEventListener('wheel', function(e) {
-                        if (e.ctrlKey || e.metaKey) {
-                            e.preventDefault();
-                            const scrollAmount = Math.abs(e.deltaY);
-                            const zoomIntensity = 0.003;
-                            const delta = e.deltaY > 0
-                                ? 1 / (1 + scrollAmount * zoomIntensity)
-                                : 1 + scrollAmount * zoomIntensity;
-                            currentZoom = Math.max(0.05, Math.min(10, currentZoom * delta));
-                            applyTransform();
-
-                            if (window.javaBridge) {
-                                window.javaBridge.onZoomChanged(currentZoom);
-                            }
-                        }
-                    }, { passive: false });
-
-                    document.addEventListener('mousedown', function(e) {
-                        if (e.button === 0) {
-                            isDragging = true;
-                            lastX = e.clientX;
-                            lastY = e.clientY;
-                            document.body.style.cursor = 'grabbing';
-                        }
-                    });
-
-                    document.addEventListener('mousemove', function(e) {
-                        if (isDragging) {
-                            panX += e.clientX - lastX;
-                            panY += e.clientY - lastY;
-                            lastX = e.clientX;
-                            lastY = e.clientY;
-                            applyTransform();
-                        }
-                    });
-
-                    document.addEventListener('mouseup', function() {
-                        isDragging = false;
-                        document.body.style.cursor = 'grab';
-                    });
-
-                    // PNG export reports failures as 'error:<reason>' so the Kotlin side
-                    // can surface them. Previously every failure path sent an empty
-                    // string, which was silently discarded.
-                    function pngExportFailed(reason) {
-                        if (window.javaBridge) {
-                            window.javaBridge.onPngExport('error:' + reason);
-                        }
-                    }
-
-                    // scale / transparent come from the plugin settings
-                    // (pngScaleFactor, pngTransparentBackground), which were previously
-                    // ignored here: the scale was hardcoded and a backdrop was always painted.
-                    window.exportAsPng = function(scale, transparent) {
-                        const svg = document.querySelector('#diagram svg');
-                        if (!svg) {
-                            pngExportFailed('no diagram is currently rendered');
-                            return;
-                        }
-
-                        // Get SVG dimensions from attributes or viewBox
-                        let width, height;
-                        const widthAttr = svg.getAttribute('width');
-                        const heightAttr = svg.getAttribute('height');
-
-                        if (widthAttr && heightAttr) {
-                            width = parseFloat(widthAttr);
-                            height = parseFloat(heightAttr);
-                        }
-
-                        // Fallback to viewBox
-                        if (!width || !height || isNaN(width) || isNaN(height)) {
-                            const viewBox = svg.getAttribute('viewBox');
-                            if (viewBox) {
-                                const parts = viewBox.split(/[\s,]+/);
-                                if (parts.length >= 4) {
-                                    width = parseFloat(parts[2]);
-                                    height = parseFloat(parts[3]);
-                                }
-                            }
-                        }
-
-                        // Final fallback to getBBox
-                        if (!width || !height || isNaN(width) || isNaN(height)) {
-                            const bbox = svg.getBBox();
-                            width = bbox.width;
-                            height = bbox.height;
-                        }
-
-                        // Clone SVG and ensure it has explicit dimensions
-                        const svgClone = svg.cloneNode(true);
-                        svgClone.setAttribute('width', width);
-                        svgClone.setAttribute('height', height);
-
-                        const svgData = new XMLSerializer().serializeToString(svgClone);
-
-                        // A data URL rather than a blob URL. This document is loaded via
-                        // loadHTML(), and blob URLs minted from its opaque origin can fail
-                        // to load in an <img> -- which used to abort the export silently.
-                        const url = 'data:image/svg+xml;base64,' +
-                            btoa(unescape(encodeURIComponent(svgData)));
-
-                        const img = new Image();
-                        img.onload = function() {
-                            try {
-                                const exportScale = (typeof scale === 'number' && scale > 0) ? scale : 2;
-                                const canvas = document.createElement('canvas');
-                                canvas.width = width * exportScale;
-                                canvas.height = height * exportScale;
-                                const ctx = canvas.getContext('2d');
-
-                                // A canvas starts fully transparent, so only paint a
-                                // backdrop when a transparent PNG was NOT requested.
-                                if (!transparent) {
-                                    ctx.fillStyle = getComputedStyle(document.getElementById('container')).backgroundColor || '#ffffff';
-                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                }
-
-                                ctx.scale(exportScale, exportScale);
-                                ctx.drawImage(img, 0, 0, width, height);
-
-                                // Throws SecurityError if drawing the SVG tainted the
-                                // canvas, e.g. via <foreignObject> in Mermaid labels.
-                                const dataUrl = canvas.toDataURL('image/png');
-                                if (window.javaBridge) {
-                                    window.javaBridge.onPngExport(dataUrl);
-                                }
-                            } catch (e) {
-                                pngExportFailed(e && e.name ? e.name + ': ' + e.message : String(e));
-                            }
-                        };
-                        img.onerror = function() {
-                            pngExportFailed('the rendered SVG could not be loaded as an image');
-                        };
-                        img.src = url;
-                    };
-
-                    window.exportAsSvg = function() {
-                        const svg = document.querySelector('#diagram svg');
-                        if (!svg) {
-                            if (window.javaBridge) window.javaBridge.onSvgExport('');
-                            return;
-                        }
-
-                        const svgData = new XMLSerializer().serializeToString(svg);
-                        if (window.javaBridge) {
-                            window.javaBridge.onSvgExport(svgData);
-                        }
-                    };
-
-                    function reportIssue() {
-                        if (window.javaBridge) {
-                            window.javaBridge.onReportIssue();
-                        }
-                    }
-                </script>
-            </body>
-            </html>
-        """.trimIndent()
-
-        browser.loadHTML(html)
+        val template = readPreviewTemplate()
+        if (template.isEmpty()) {
+            onRenderError?.invoke("Preview template could not be loaded from the plugin resources")
+            return
+        }
+        browser.loadHTML(template.replace(MERMAID_LIBRARY_PLACEHOLDER, MermaidBundle.script))
     }
+
+    private fun readPreviewTemplate(): String =
+        try {
+            MermaidPreviewPanel::class.java.getResourceAsStream(PREVIEW_TEMPLATE_RESOURCE)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: ""
+        } catch (e: Exception) {
+            ""
+        }
 
     fun renderDiagram(source: String, theme: String? = null) {
         textSource = source
