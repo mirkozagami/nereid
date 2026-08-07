@@ -5,6 +5,33 @@ All notable changes to Nereid are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0]
+
+Custom CSS arrives, panning is fixed, and the settings screen finally does what it says. Several of the bugs here failed silently, which is why they lasted so long.
+
+### Added
+
+- **Custom CSS.** Inject your own CSS into the diagram preview from Settings, Nereid, Advanced. Useful for overriding stroke widths, label fonts and colours that the built-in Mermaid themes do not expose. Clearing the field removes the rules again.
+
+### Fixed
+
+- **"Report this issue" did nothing.** The link in the render error overlay had never worked since it was added: the dialog was created on the browser's own thread, where the IDE refuses to show it, and the resulting error was swallowed.
+- **Diagram text blurred after panning.** The preview animated every pan, so the diagram continuously lagged the cursor and its text was resampled part-way through the animation. Panning is now immediate; the zoom buttons still animate.
+- **Dragging to pan selected the diagram's text.** A single drag highlighted every label. Error messages stay selectable, so you can still copy them.
+- **Settings had no effect until the file was reopened.** Nothing told an open preview that a setting had changed, so changes made on the settings screen appeared to do nothing. Changing the theme from the toolbar also left any other open diagram on the old theme.
+- **The preview needed an internet connection.** Mermaid was fetched from a CDN at an unpinned version, so the preview failed offline and could change under you with no plugin update. It is now bundled with the plugin.
+- **Diagnostic reports named the wrong Mermaid version.** The version was hardcoded and had drifted from the library actually shipped.
+
+### Changed
+
+- **One settings screen instead of two.** The toolbar's gear button now opens Settings, Nereid, rather than a separate dialog that bound the same settings a different way. Both had independently developed the same save bug. The page is regrouped as Preview, Editor, Export and Advanced.
+- **PNG export scale can be set up to 8x.** The dropdown stopped at 3, although exports already supported 8.
+- **Mermaid updated to a stock 11.16.1 build**, replacing a patched bundle, so diagram rendering matches upstream.
+
+### Removed
+
+- **Nine settings that never did anything.** They were saved to disk and read by nothing. Three had visible controls: "Use custom Mermaid.js", "Custom URL" and "Modifier key". Existing settings files load fine; the values are simply ignored.
+
 ## [1.1.0]
 
 Five user-facing bugs are fixed in this release, several of which failed silently.
