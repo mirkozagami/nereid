@@ -6,15 +6,15 @@ import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.nereid.settings.MermaidSettingsDialog
+import com.intellij.openapi.options.ShowSettingsUtil
+import com.nereid.settings.MermaidSettingsConfigurable
 import javax.swing.JComponent
 
 class MermaidEditorToolbar(
     private val onZoomIn: () -> Unit,
     private val onZoomOut: () -> Unit,
     private val onZoomReset: () -> Unit,
-    private val onFitToView: () -> Unit,
-    private val onSettingsChanged: () -> Unit
+    private val onFitToView: () -> Unit
 ) {
 
     private val toolbar: ActionToolbar
@@ -22,8 +22,8 @@ class MermaidEditorToolbar(
     init {
         val group = DefaultActionGroup().apply {
             // Theme and Background dropdowns
-            add(ThemeDropdownAction { onSettingsChanged() })
-            add(BackgroundDropdownAction { onSettingsChanged() })
+            add(ThemeDropdownAction())
+            add(BackgroundDropdownAction())
             addSeparator()
             // Zoom controls
             add(ZoomInAction())
@@ -57,12 +57,18 @@ class MermaidEditorToolbar(
         override fun actionPerformed(e: AnActionEvent) = onFitToView()
     }
 
-    private inner class SettingsAction : AnAction("Settings", "Open Mermaid settings", AllIcons.General.Settings) {
+    /**
+     * Opens the IDE settings page rather than a bespoke dialog. The plugin used to ship a
+     * second settings UI reached from here; both it and the settings page independently
+     * grew the same "bindings never applied" bug, so it was deleted in #12.
+     *
+     * No explicit refresh afterwards: applying the page publishes
+     * MermaidSettingsListener.TOPIC, which every open preview is subscribed to.
+     */
+    private inner class SettingsAction : AnAction("Settings", "Open Nereid settings", AllIcons.General.Settings) {
         override fun actionPerformed(e: AnActionEvent) {
-            val dialog = MermaidSettingsDialog(e.project)
-            if (dialog.showAndGet()) {
-                onSettingsChanged()
-            }
+            ShowSettingsUtil.getInstance()
+                .showSettingsDialog(e.project, MermaidSettingsConfigurable::class.java)
         }
     }
 }

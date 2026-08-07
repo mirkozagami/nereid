@@ -5,6 +5,14 @@ import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 
+/**
+ * The single settings UI for the plugin, reached from **Settings > Tools > Nereid** and
+ * from the editor toolbar's gear button.
+ *
+ * There used to be a second one, `MermaidSettingsDialog`, bound to the same settings by a
+ * different mechanism. Both independently shipped the identical "bindings never applied"
+ * bug (#10, #11), and every new setting had to be added twice. It was deleted in #12.
+ */
 class MermaidSettingsConfigurable : Configurable {
 
     // Must stay DialogPanel, not JComponent: the bindXxx() bindings only write back
@@ -20,7 +28,32 @@ class MermaidSettingsConfigurable : Configurable {
     override fun getDisplayName(): String = "Nereid"
 
     override fun createComponent(): JComponent {
+        // Grouped by what the user is trying to do, rather than by which part of the
+        // codebase reads the value.
         panel = panel {
+            group("Preview") {
+                row("Theme:") {
+                    comboBox(MermaidSettings.ThemeMode.entries)
+                        .bindItem(settings::themeMode.toNullableProperty())
+                }
+                row("Mermaid theme:") {
+                    comboBox(listOf("default", "dark", "forest", "neutral"))
+                        .bindItem(settings::mermaidTheme.toNullableProperty())
+                }
+                row("Background:") {
+                    comboBox(MermaidSettings.PreviewBackground.entries)
+                        .bindItem(settings::previewBackground.toNullableProperty())
+                }
+                row("Default zoom:") {
+                    comboBox(MermaidSettings.ZoomLevel.entries)
+                        .bindItem(settings::defaultZoomLevel.toNullableProperty())
+                }
+                row {
+                    checkBox("Enable mouse wheel zoom")
+                        .bindSelected(settings::mouseWheelZoomEnabled)
+                }
+            }
+
             group("Editor") {
                 row("Preview update:") {
                     comboBox(MermaidSettings.PreviewUpdateMode.entries)
@@ -37,28 +70,16 @@ class MermaidSettingsConfigurable : Configurable {
                 }
             }
 
-            group("Appearance") {
-                row("Theme:") {
-                    comboBox(MermaidSettings.ThemeMode.entries)
-                        .bindItem(settings::themeMode.toNullableProperty())
-                }
-                row("Mermaid theme:") {
-                    comboBox(listOf("default", "dark", "forest", "neutral"))
-                        .bindItem(settings::mermaidTheme.toNullableProperty())
-                }
-                row("Background:") {
-                    comboBox(MermaidSettings.PreviewBackground.entries)
-                        .bindItem(settings::previewBackground.toNullableProperty())
-                }
-            }
-
             group("Export") {
                 row("Default format:") {
                     comboBox(MermaidSettings.ExportFormat.entries)
                         .bindItem(settings::defaultExportFormat.toNullableProperty())
                 }
+                // 1..8 to match the coerceIn(1, 8) the exporter actually applies. The
+                // dropdown used to stop at 3, so the top of the supported range was
+                // unreachable from the UI.
                 row("PNG scale:") {
-                    comboBox(listOf(1, 2, 3))
+                    comboBox((1..8).toList())
                         .bindItem(settings::pngScaleFactor.toNullableProperty())
                     label("x")
                 }
@@ -68,30 +89,17 @@ class MermaidSettingsConfigurable : Configurable {
                 }
             }
 
-            group("Zoom & Navigation") {
-                row {
-                    checkBox("Enable mouse wheel zoom")
-                        .bindSelected(settings::mouseWheelZoomEnabled)
-                }
-                row("Default zoom:") {
-                    comboBox(MermaidSettings.ZoomLevel.entries)
-                        .bindItem(settings::defaultZoomLevel.toNullableProperty())
-                }
-            }
-
             group("Advanced") {
                 row("Security:") {
                     comboBox(MermaidSettings.SecurityMode.entries)
                         .bindItem(settings::securityMode.toNullableProperty())
                 }
-            }
-
-            group("Custom CSS") {
                 row {
                     textArea()
                         .bindText(settings::customCss)
                         .rows(6)
                         .align(AlignX.FILL)
+                        .label("Custom CSS:", LabelPosition.TOP)
                         .comment(
                             "Injected into the diagram preview, after the built-in styles. " +
                                 "Example: <code>#diagram svg .node rect { stroke-width: 2px; }</code>"
@@ -109,7 +117,10 @@ class MermaidSettingsConfigurable : Configurable {
     override fun isModified(): Boolean = panel?.isModified() ?: false
 
     override fun apply() {
-        panel?.apply()
+        panel?.apply() ?: return
+        // Open previews have no other way to learn about this. Without the broadcast the
+        // page saves correctly and nothing on screen changes until the file is reopened.
+        MermaidSettingsListener.notifyChanged()
     }
 
     override fun reset() {

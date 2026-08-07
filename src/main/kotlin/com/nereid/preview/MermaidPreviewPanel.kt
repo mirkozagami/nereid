@@ -1,11 +1,13 @@
 package com.nereid.preview
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import com.nereid.settings.MermaidSettings
+import com.nereid.settings.MermaidSettingsListener
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.callback.CefContextMenuParams
@@ -85,6 +87,17 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         loadPreviewHtml()
 
         Disposer.register(parentDisposable, this)
+
+        // Every open preview reacts to a settings change, not just the one whose toolbar
+        // was used. The connection is tied to this panel, so it goes away with it.
+        ApplicationManager.getApplication().messageBus
+            .connect(this)
+            .subscribe(
+                MermaidSettingsListener.TOPIC,
+                object : MermaidSettingsListener {
+                    override fun settingsChanged() = applySettings()
+                }
+            )
 
         themeManager = ThemeManager(this)
         themeManager.onThemeChanged = { isDark, mermaidTheme, background ->

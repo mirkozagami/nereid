@@ -6,11 +6,10 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.nereid.settings.MermaidSettings
+import com.nereid.settings.MermaidSettingsListener
 import javax.swing.JComponent
 
-class BackgroundDropdownAction(
-    private val onBackgroundChanged: () -> Unit
-) : ComboBoxAction() {
+class BackgroundDropdownAction : ComboBoxAction() {
 
     private val settings = MermaidSettings.getInstance()
 
@@ -53,7 +52,7 @@ class BackgroundDropdownAction(
         override fun setSelected(e: AnActionEvent, state: Boolean) {
             if (state) {
                 settings.previewBackground = bgValue
-                onBackgroundChanged()
+                MermaidSettingsListener.notifyChanged()
             }
         }
     }

@@ -71,8 +71,7 @@ class MermaidSplitEditor(
             onZoomIn = { previewPanel.zoomIn() },
             onZoomOut = { previewPanel.zoomOut() },
             onZoomReset = { previewPanel.resetView() },
-            onFitToView = { previewPanel.fitToView() },
-            onSettingsChanged = { previewPanel.applySettings() }
+            onFitToView = { previewPanel.fitToView() }
         )
 
         val notificationBar = diagnosticNotifier.createNotificationBar()
