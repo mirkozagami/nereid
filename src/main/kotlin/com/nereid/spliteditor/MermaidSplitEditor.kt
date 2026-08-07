@@ -100,13 +100,21 @@ class MermaidSplitEditor(
             lastRenderError = error
         }
 
+        // invokeLater is required, not defensive: JCEF delivers this callback on the
+        // native browser thread (AppKit Thread on macOS), and both DialogWrapper.show()
+        // and Document.getText() are EDT-only. Off the EDT the dialog threw before it
+        // could appear and the exception died inside the JCEF callback, so clicking
+        // "Report this issue" did nothing at all. Every other JCEF-originating callback
+        // in this class marshals the same way.
         previewPanel.onReportIssue = {
-            val collector = DiagnosticCollector()
-            val bundle = collector.collect(
-                lastRenderError = lastRenderError,
-                diagramSource = textEditor.editor?.document?.text
-            )
-            DiagnosticDialog(project, bundle).show()
+            ApplicationManager.getApplication().invokeLater {
+                val collector = DiagnosticCollector()
+                val bundle = collector.collect(
+                    lastRenderError = lastRenderError,
+                    diagramSource = textEditor.editor?.document?.text
+                )
+                DiagnosticDialog(project, bundle).show()
+            }
         }
     }
 
