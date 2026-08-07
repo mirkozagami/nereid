@@ -73,10 +73,6 @@ class MermaidSettingsConfigurable : Configurable {
                     checkBox("Enable mouse wheel zoom")
                         .bindSelected(settings::mouseWheelZoomEnabled)
                 }
-                row("Modifier key:") {
-                    comboBox(MermaidSettings.ModifierKey.entries)
-                        .bindItem(settings::zoomModifierKey.toNullableProperty())
-                }
                 row("Default zoom:") {
                     comboBox(MermaidSettings.ZoomLevel.entries)
                         .bindItem(settings::defaultZoomLevel.toNullableProperty())
@@ -84,15 +80,6 @@ class MermaidSettingsConfigurable : Configurable {
             }
 
             group("Advanced") {
-                row {
-                    checkBox("Use custom Mermaid.js")
-                        .bindSelected(settings::useCustomMermaidJs)
-                }
-                row("Custom URL:") {
-                    textField()
-                        .bindText(settings::customMermaidJsUrl)
-                        .enabled(settings.useCustomMermaidJs)
-                }
                 row("Security:") {
                     comboBox(MermaidSettings.SecurityMode.entries)
                         .bindItem(settings::securityMode.toNullableProperty())
