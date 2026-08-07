@@ -98,6 +98,19 @@ class MermaidSettingsConfigurable : Configurable {
                         .bindItem(settings::securityMode.toNullableProperty())
                 }
             }
+
+            group("Custom CSS") {
+                row {
+                    textArea()
+                        .bindText(settings::customCss)
+                        .rows(6)
+                        .align(AlignX.FILL)
+                        .comment(
+                            "Injected into the diagram preview, after the built-in styles. " +
+                                "Example: <code>#diagram svg .node rect { stroke-width: 2px; }</code>"
+                        )
+                }.resizableRow()
+            }
         }
         return panel!!
     }

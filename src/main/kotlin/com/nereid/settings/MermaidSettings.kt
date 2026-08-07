@@ -38,6 +38,15 @@ class MermaidSettings : PersistentStateComponent<MermaidSettings> {
     var defaultZoomLevel: ZoomLevel = ZoomLevel.FIT_ALL
 
     // Advanced settings
+    /**
+     * Extra CSS injected into the preview document, for overriding SVG styles Mermaid's
+     * themes do not expose (stroke widths, label fonts, specific colours).
+     *
+     * Deliberately absent from the toolbar's settings dialog: that dialog and the
+     * settings page already duplicate every other setting, which is the duplication #12
+     * exists to collapse, and a multi-line editor belongs on the settings page.
+     */
+    var customCss: String = ""
     var useCustomMermaidJs: Boolean = false
     var customMermaidJsUrl: String = ""
     var securityMode: SecurityMode = SecurityMode.STRICT

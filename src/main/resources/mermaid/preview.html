@@ -10,6 +10,10 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
             cursor: grab;
+            /* Dragging the canvas is a pan gesture, not a text selection. Without this,
+               panning highlights every SVG label. The error overlay opts back in below,
+               so its message stays selectable and copyable. */
+            user-select: none;
         }
         #container {
             width: 100vw;
@@ -21,6 +25,18 @@
         }
         #diagram {
             transform-origin: center center;
+        }
+        /*
+          Applied only for discrete, one-shot zoom actions -- never while panning or
+          wheel-zooming.
+
+          A transition that is always on turns every pan mousemove into a fresh 100ms
+          interpolation, so the diagram permanently lags the cursor and its text is
+          resampled at fractional offsets mid-animation. That is the pan blur. It also
+          corrupted fitToView(), which resets the transform and measures the result on
+          the next frame -- while the reset was still animating.
+        */
+        #diagram.animated {
             transition: transform 0.1s ease-out;
         }
         #diagram svg { max-width: none; }
@@ -39,6 +55,9 @@
             flex-direction: column;
             gap: 8px;
         }
+        /* Opt back in to selection: the whole point of an error message is being able
+           to read and copy it, and body sets user-select: none for panning. */
+        #error { user-select: text; }
         #error-message { flex: 1; }
         #report-link { font-size: 12px; color: #666; text-align: right; }
         #report-link:hover { color: #333; }
@@ -52,6 +71,11 @@
         body.dark #report-link { color: #aaa; }
         body.dark #report-link:hover { color: #fff; }
     </style>
+    <!--
+      User-supplied CSS from Settings > Nereid, filled in by applyCustomCss().
+      Last in the head so it wins over the rules above at equal specificity.
+    -->
+    <style id="custom-css"></style>
     <!--
       Mermaid is inlined from the plugin bundle, not fetched from a CDN.
       A CDN made the preview require internet access, and the unpinned
@@ -114,14 +138,14 @@
 
         window.setZoom = function(zoom) {
             currentZoom = zoom;
-            applyTransform();
+            applyTransform(true);
         };
 
         window.resetView = function() {
             currentZoom = 1;
             panX = 0;
             panY = 0;
-            applyTransform();
+            applyTransform(true);
         };
 
         window.fitToView = function() {
@@ -129,7 +153,10 @@
             const svg = diagram.querySelector('svg');
             if (!svg) return;
 
-            // Reset transform first to get accurate natural dimensions
+            // Reset transform first to get accurate natural dimensions. This reset must
+            // NOT animate: the measurement below runs on the very next frame, and an
+            // in-flight transition would have it measure a partly-scaled diagram and fit
+            // to the wrong size.
             currentZoom = 1;
             panX = 0;
             panY = 0;
@@ -149,7 +176,7 @@
                 currentZoom = Math.min(scaleX, scaleY);
                 panX = 0;
                 panY = 0;
-                applyTransform();
+                applyTransform(true);
 
                 if (window.javaBridge) {
                     window.javaBridge.onZoomChanged(currentZoom);
@@ -157,14 +184,29 @@
             });
         };
 
-        function applyTransform() {
+        /**
+         * Writes the current pan/zoom to the diagram.
+         *
+         * `animate` is opt-in and belongs only to discrete actions (the zoom buttons,
+         * reset, fit). Continuous gestures -- dragging and wheel zoom -- must pass
+         * nothing, so each event lands immediately instead of starting a 100ms
+         * interpolation the next event restarts.
+         *
+         * Translation is rounded because a fractional offset makes the compositor
+         * resample the layer, which is what turns crisp SVG text fuzzy. Pointer
+         * coordinates are integral on most platforms, but not all -- fractional display
+         * scaling and browser page zoom both produce fractional clientX.
+         */
+        function applyTransform(animate) {
             const diagram = document.getElementById('diagram');
-            diagram.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + currentZoom + ')';
+            diagram.classList.toggle('animated', animate === true);
+            diagram.style.transform =
+                'translate(' + Math.round(panX) + 'px, ' + Math.round(panY) + 'px) scale(' + currentZoom + ')';
         }
 
         window.zoomIn = function() {
             currentZoom = Math.min(10, currentZoom * 1.25);
-            applyTransform();
+            applyTransform(true);
             if (window.javaBridge) {
                 window.javaBridge.onZoomChanged(currentZoom);
             }
@@ -172,7 +214,7 @@
 
         window.zoomOut = function() {
             currentZoom = Math.max(0.05, currentZoom / 1.25);
-            applyTransform();
+            applyTransform(true);
             if (window.javaBridge) {
                 window.javaBridge.onZoomChanged(currentZoom);
             }
@@ -197,6 +239,14 @@
 
         document.addEventListener('mousedown', function(e) {
             if (e.button === 0) {
+                // Suppress the browser's native drag-to-select, which otherwise
+                // highlights every label in the diagram while panning. Left out here so
+                // clicks inside the error overlay keep their default behaviour -- the
+                // "Report this issue" link must stay clickable and its message
+                // selectable.
+                if (!e.target.closest('#error')) {
+                    e.preventDefault();
+                }
                 isDragging = true;
                 lastX = e.clientX;
                 lastY = e.clientY;
@@ -326,6 +376,19 @@
             if (window.javaBridge) {
                 window.javaBridge.onSvgExport(svgData);
             }
+        };
+
+        /**
+         * Replaces the user's custom CSS.
+         *
+         * Assigned with textContent, not innerHTML, so the CSS is never parsed as markup
+         * and a stray '</style>' cannot break out of the element.
+         *
+         * An empty string is a valid argument and clears the rules -- the caller must be
+         * able to remove CSS, not only set it.
+         */
+        window.applyCustomCss = function(css) {
+            document.getElementById('custom-css').textContent = css || '';
         };
 
         function reportIssue() {

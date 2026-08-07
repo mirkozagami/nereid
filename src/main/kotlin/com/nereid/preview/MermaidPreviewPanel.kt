@@ -52,6 +52,22 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
 
         /** Replaced with the bundled Mermaid source before the page is loaded. */
         internal const val MERMAID_LIBRARY_PLACEHOLDER = "__MERMAID_LIBRARY__"
+
+        /**
+         * Escapes text for embedding in a JavaScript template literal.
+         *
+         * Both the diagram source and the user's custom CSS are passed to the page this
+         * way, so the rules live in one place rather than being duplicated per call site.
+         *
+         * `$` needs escaping as much as the backtick does: an unescaped `${...}` would be
+         * evaluated as interpolation rather than treated as text.
+         */
+        internal fun escapeForTemplateLiteral(text: String): String =
+            text
+                .replace("\\", "\\\\")
+                .replace("`", "\\`")
+                .replace("\$", "\\$")
+                .replace("\n", "\\n")
     }
 
     init {
@@ -81,6 +97,27 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
 
     fun applySettings() {
         themeManager.applyCurrentSettings()
+        applyCustomCss(MermaidSettings.getInstance().customCss)
+    }
+
+    /**
+     * Pushes the user's custom CSS into the preview document.
+     *
+     * Applied unconditionally, including when blank: clearing the setting has to clear
+     * the rules, so skipping empty input would strand whatever was injected last.
+     *
+     * The CSS is escaped for the JS template literal it is embedded in -- the same
+     * treatment [renderDiagram] gives diagram source. `$` matters as much as the
+     * backtick here, since `${...}` would otherwise interpolate.
+     */
+    fun applyCustomCss(css: String) {
+        if (!isLoaded) return
+
+        browser.cefBrowser.executeJavaScript(
+            "window.applyCustomCss(`${escapeForTemplateLiteral(css)}`);",
+            browser.cefBrowser.url,
+            0
+        )
     }
 
     private fun setupExportQueries() {
@@ -226,13 +263,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
             return
         }
 
-        val escapedSource = source
-            .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("\$", "\\$")
-            .replace("\n", "\\n")
-
-        val js = "window.renderDiagram(`$escapedSource`, '$actualTheme');"
+        val js = "window.renderDiagram(`${escapeForTemplateLiteral(source)}`, '$actualTheme');"
         browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
     }
 
