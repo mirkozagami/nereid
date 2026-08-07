@@ -4,6 +4,7 @@ import com.intellij.ide.plugins.cl.PluginAwareClassLoader
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.ui.jcef.JBCefApp
+import com.nereid.preview.MermaidBundle
 import com.nereid.settings.MermaidSettings
 import java.io.File
 
@@ -20,7 +21,7 @@ class DiagnosticCollector {
             pluginSettings = collectPluginSettings(),
             renderingStatus = RenderingStatus(
                 lastError = lastRenderError,
-                mermaidVersion = "11", // Loaded from CDN
+                mermaidVersion = MermaidBundle.version,
                 consoleMessages = consoleMessages
             ),
             recentActions = ActionLogger.getRecentActions(),
