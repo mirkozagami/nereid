@@ -6,11 +6,10 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.nereid.settings.MermaidSettings
+import com.nereid.settings.MermaidSettingsListener
 import javax.swing.JComponent
 
-class ThemeDropdownAction(
-    private val onThemeChanged: () -> Unit
-) : ComboBoxAction() {
+class ThemeDropdownAction : ComboBoxAction() {
 
     private val settings = MermaidSettings.getInstance()
 
@@ -55,7 +54,7 @@ class ThemeDropdownAction(
                 settings.mermaidTheme = themeValue
                 // Set theme mode to use the selected Mermaid theme
                 settings.themeMode = MermaidSettings.ThemeMode.MERMAID_THEME
-                onThemeChanged()
+                MermaidSettingsListener.notifyChanged()
             }
         }
     }
