@@ -19,9 +19,35 @@ object MermaidBundle {
     const val UNKNOWN = "Unknown"
 
     private const val VERSION_RESOURCE = "/mermaid/mermaid-version.txt"
+    private const val SCRIPT_RESOURCE = "/mermaid/mermaid.min.js"
 
-    /** The bundled Mermaid version, e.g. `10.9.5`, or [UNKNOWN] if it cannot be read. */
+    /** The bundled Mermaid version, e.g. `11.16.1`, or [UNKNOWN] if it cannot be read. */
     val version: String by lazy { readVersion() }
+
+    /**
+     * The bundled Mermaid library source, for inlining into the preview document.
+     *
+     * Read once and cached: the file is ~3.4 MB, and every preview panel needs it.
+     *
+     * It is inlined rather than referenced with a relative `<script src>` because the
+     * preview is loaded via `JBCefBrowserBase.loadHTML()`, which gives the document an
+     * opaque origin with nothing to resolve relative URLs against — the same origin
+     * quirk that previously broke PNG export via blob URLs.
+     *
+     * Empty if the resource cannot be read, which surfaces as a render failure in the
+     * preview rather than a silent blank panel.
+     */
+    val script: String by lazy { readScript() }
+
+    private fun readScript(): String =
+        try {
+            MermaidBundle::class.java.getResourceAsStream(SCRIPT_RESOURCE)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: ""
+        } catch (e: Exception) {
+            ""
+        }
 
     private fun readVersion(): String =
         try {

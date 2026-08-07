@@ -235,7 +235,14 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                     body.dark #report-link { color: #aaa; }
                     body.dark #report-link:hover { color: #fff; }
                 </style>
-                <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+                <!--
+                  Mermaid is inlined from the plugin bundle, not fetched from a CDN.
+                  A CDN made the preview require internet access, and the unpinned
+                  'mermaid@11' range meant the version changed under users with no
+                  plugin release. See MermaidBundle for why it is inlined rather than
+                  referenced with a relative <script src>.
+                -->
+                <script>${MermaidBundle.script}</script>
             </head>
             <body>
                 <div id="container">
