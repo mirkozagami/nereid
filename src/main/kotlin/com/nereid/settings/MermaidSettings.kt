@@ -6,6 +6,20 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.XmlSerializerUtil
 
+/**
+ * Persisted plugin settings.
+ *
+ * Every setting here must be read by something. Nine were removed in #39 because nothing
+ * consumed them: they appeared in the settings UI, saved to the user's `mermaid.xml`, and
+ * changed nothing. `MermaidSettingsAreConsumedTest` now guards that.
+ *
+ * Removing a property is safe on upgrade. `XmlSerializerUtil.copyBean` copies by matching
+ * property, so entries left in an existing `mermaid.xml` with no counterpart here are
+ * ignored rather than failing the load.
+ *
+ * The `name = "MermaidSettings"` state key is the storage key in users' `options/` files
+ * and must not be renamed -- doing so silently resets everyone's saved settings.
+ */
 @State(
     name = "MermaidSettings",
     storages = [Storage("mermaid.xml")]
@@ -16,25 +30,19 @@ class MermaidSettings : PersistentStateComponent<MermaidSettings> {
     var previewUpdateMode: PreviewUpdateMode = PreviewUpdateMode.LIVE
     var debounceDelayMs: Int = 300
     var defaultViewMode: ViewMode = ViewMode.SPLIT
-    var showLineNumbersInErrors: Boolean = true
 
     // Appearance settings
     var themeMode: ThemeMode = ThemeMode.FOLLOW_IDE
     var mermaidTheme: String = "default"
-    var customThemeJson: String = ""
     var previewBackground: PreviewBackground = PreviewBackground.MATCH_IDE
 
     // Export settings
     var defaultExportFormat: ExportFormat = ExportFormat.PNG
     var pngScaleFactor: Int = 2
     var pngTransparentBackground: Boolean = true
-    var svgEmbedFonts: Boolean = true
-    var lastExportDirectory: String = ""
 
     // Zoom settings
     var mouseWheelZoomEnabled: Boolean = true
-    var zoomModifierKey: ModifierKey = ModifierKey.CTRL
-    var zoomSensitivity: Int = 5
     var defaultZoomLevel: ZoomLevel = ZoomLevel.FIT_ALL
 
     // Advanced settings
@@ -47,17 +55,13 @@ class MermaidSettings : PersistentStateComponent<MermaidSettings> {
      * exists to collapse, and a multi-line editor belongs on the settings page.
      */
     var customCss: String = ""
-    var useCustomMermaidJs: Boolean = false
-    var customMermaidJsUrl: String = ""
     var securityMode: SecurityMode = SecurityMode.STRICT
-    var experimentalFeaturesEnabled: Boolean = false
 
     enum class PreviewUpdateMode { LIVE, ON_SAVE, MANUAL }
     enum class ViewMode { CODE_ONLY, SPLIT, PREVIEW_ONLY }
     enum class ThemeMode { FOLLOW_IDE, MERMAID_THEME, CUSTOM }
     enum class PreviewBackground { TRANSPARENT, MATCH_IDE, WHITE, DARK }
     enum class ExportFormat { PNG, SVG }
-    enum class ModifierKey { CTRL, CMD, NONE }
     enum class ZoomLevel { FIT_ALL, ACTUAL_SIZE, LAST_USED }
     enum class SecurityMode { STRICT, LOOSE }
 

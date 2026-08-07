@@ -22,10 +22,7 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
     private var pngScaleFactor = settings.pngScaleFactor
     private var pngTransparentBackground = settings.pngTransparentBackground
     private var mouseWheelZoomEnabled = settings.mouseWheelZoomEnabled
-    private var zoomModifierKey = settings.zoomModifierKey
     private var defaultZoomLevel = settings.defaultZoomLevel
-    private var useCustomMermaidJs = settings.useCustomMermaidJs
-    private var customMermaidJsUrl = settings.customMermaidJsUrl
     private var securityMode = settings.securityMode
 
     // Retained so doOKAction() can apply() them. The bindXxx() bindings below only copy
@@ -83,10 +80,6 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
                     checkBox("Enable mouse wheel zoom")
                         .bindSelected({ mouseWheelZoomEnabled }, { mouseWheelZoomEnabled = it })
                 }
-                row("Modifier key:") {
-                    comboBox(MermaidSettings.ModifierKey.entries)
-                        .bindItem({ zoomModifierKey }, { zoomModifierKey = it ?: MermaidSettings.ModifierKey.CTRL })
-                }
                 row("Default zoom:") {
                     comboBox(MermaidSettings.ZoomLevel.entries)
                         .bindItem({ defaultZoomLevel }, { defaultZoomLevel = it ?: MermaidSettings.ZoomLevel.FIT_ALL })
@@ -132,17 +125,6 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
                 }
             }
 
-            group("Custom Mermaid.js") {
-                row {
-                    checkBox("Use custom Mermaid.js URL")
-                        .bindSelected({ useCustomMermaidJs }, { useCustomMermaidJs = it })
-                }
-                row("Custom URL:") {
-                    textField()
-                        .bindText({ customMermaidJsUrl }, { customMermaidJsUrl = it })
-                        .columns(COLUMNS_LARGE)
-                }
-            }
 
             group("Security") {
                 row("Security level:") {
@@ -169,10 +151,7 @@ class MermaidSettingsDialog(project: Project?) : DialogWrapper(project) {
         settings.pngScaleFactor = pngScaleFactor
         settings.pngTransparentBackground = pngTransparentBackground
         settings.mouseWheelZoomEnabled = mouseWheelZoomEnabled
-        settings.zoomModifierKey = zoomModifierKey
         settings.defaultZoomLevel = defaultZoomLevel
-        settings.useCustomMermaidJs = useCustomMermaidJs
-        settings.customMermaidJsUrl = customMermaidJsUrl
         settings.securityMode = securityMode
 
         super.doOKAction()
