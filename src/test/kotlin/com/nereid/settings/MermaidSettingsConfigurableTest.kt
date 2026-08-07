@@ -5,6 +5,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.xmlb.XmlSerializerUtil
 import java.awt.Container
 import javax.swing.JCheckBox
+import javax.swing.JTextArea
 
 /**
  * Guards the defect fixed in 116c6b3, where `apply()` on the settings page was empty, so
@@ -79,6 +80,61 @@ class MermaidSettingsConfigurableTest : BasePlatformTestCase() {
             configurable.disposeUIResources()
         }
     }
+
+    fun testApplyPersistsCustomCss() {
+        val configurable = MermaidSettingsConfigurable()
+        try {
+            val panel = configurable.createComponent() as DialogPanel
+            val css = "#diagram svg .node rect { stroke-width: 2px; }"
+
+            panel.findTextArea().text = css
+            configurable.apply()
+
+            assertEquals(
+                "Custom CSS typed on the settings page did not reach MermaidSettings",
+                css,
+                settings.customCss
+            )
+        } finally {
+            configurable.disposeUIResources()
+        }
+    }
+
+    /**
+     * Clearing the field has to clear the setting, so a user can remove CSS and not only
+     * add it.
+     *
+     * This covers the settings half only. The preview half -- `applyCustomCss` being
+     * called even when the value is blank, rather than behind an `isNotBlank()` guard --
+     * runs through JCEF and cannot be exercised headlessly.
+     */
+    fun testApplyPersistsClearingCustomCss() {
+        settings.customCss = "#diagram svg { opacity: 0.5; }"
+
+        val configurable = MermaidSettingsConfigurable()
+        try {
+            val panel = configurable.createComponent() as DialogPanel
+            panel.findTextArea().text = ""
+            configurable.apply()
+
+            assertEquals("Clearing the custom CSS field did not clear the setting", "", settings.customCss)
+        } finally {
+            configurable.disposeUIResources()
+        }
+    }
+
+    private fun Container.findTextArea(): JTextArea =
+        textAreas().firstOrNull()
+            ?: throw AssertionError("No text area on the settings page")
+
+    private fun Container.textAreas(): List<JTextArea> =
+        components.flatMap { child ->
+            when (child) {
+                is JTextArea -> listOf(child)
+                is Container -> child.textAreas()
+                else -> emptyList()
+            }
+        }
 
     /**
      * The DSL nests controls several panels deep, so the checkbox is found by walking the

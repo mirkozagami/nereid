@@ -72,6 +72,11 @@
         body.dark #report-link:hover { color: #fff; }
     </style>
     <!--
+      User-supplied CSS from Settings > Nereid, filled in by applyCustomCss().
+      Last in the head so it wins over the rules above at equal specificity.
+    -->
+    <style id="custom-css"></style>
+    <!--
       Mermaid is inlined from the plugin bundle, not fetched from a CDN.
       A CDN made the preview require internet access, and the unpinned
       'mermaid@11' range meant the version changed under users with no
@@ -371,6 +376,19 @@
             if (window.javaBridge) {
                 window.javaBridge.onSvgExport(svgData);
             }
+        };
+
+        /**
+         * Replaces the user's custom CSS.
+         *
+         * Assigned with textContent, not innerHTML, so the CSS is never parsed as markup
+         * and a stray '</style>' cannot break out of the element.
+         *
+         * An empty string is a valid argument and clears the rules -- the caller must be
+         * able to remove CSS, not only set it.
+         */
+        window.applyCustomCss = function(css) {
+            document.getElementById('custom-css').textContent = css || '';
         };
 
         function reportIssue() {

@@ -136,6 +136,30 @@ class PreviewTemplateTest {
     }
 
     /**
+     * The custom CSS from Settings > Nereid is written into a dedicated style element.
+     * It must come last in the head so user rules win over the built-in ones at equal
+     * specificity -- otherwise the setting appears to do nothing for most overrides.
+     */
+    @Test
+    fun testCustomCssElementIsLastInTheHead() {
+        val html = template()
+
+        val customCssAt = html.indexOf("""<style id="custom-css">""")
+        assertTrue("preview.html has no <style id=\"custom-css\"> element", customCssAt >= 0)
+
+        val builtInStylesAt = html.indexOf("<style>")
+        assertTrue(
+            "The custom CSS element must come after the built-in <style> block, or user " +
+                "overrides lose on specificity ties",
+            customCssAt > builtInStylesAt
+        )
+        assertTrue(
+            "The custom CSS element must be in the <head>",
+            customCssAt < html.indexOf("<body>")
+        )
+    }
+
+    /**
      * The page is useless without the entry points the Kotlin side calls into and the
      * bridge callbacks it listens for. Guards against an edit dropping one silently.
      */
@@ -149,6 +173,7 @@ class PreviewTemplateTest {
             "window.setZoom",
             "window.fitToView",
             "window.resetView",
+            "window.applyCustomCss",
             "javaBridge",
         ).forEach { symbol ->
             assertTrue("preview.html no longer defines or uses '$symbol'", html.contains(symbol))
