@@ -20,6 +20,9 @@ class MermaidCompletionContributor : CompletionContributor() {
             "pie" to "Pie chart",
             "gitGraph" to "Git graph",
             "mindmap" to "Mind map",
+            "stateDiagram" to "State diagram (v1)",
+            "requirementDiagram" to "Requirement diagram",
+            "C4Context" to "C4 context diagram",
             "timeline" to "Timeline",
             "quadrantChart" to "Quadrant chart",
             "sankey-beta" to "Sankey diagram",
@@ -32,6 +35,11 @@ class MermaidCompletionContributor : CompletionContributor() {
             "architecture-beta" to "Architecture diagram",
             "journey" to "User journey diagram"
         )
+
+        /** Exposed so DiagramTypeConsistencyTest can hold this list to the lexer's (#46). */
+        internal fun diagramTypeNames(): Set<String> = DIAGRAM_TYPES.map { it.first }.toSet()
+
+        internal fun directionNames(): Set<String> = DIRECTIONS.map { it.first }.toSet()
 
         private val DIRECTIONS = listOf(
             "TB" to "Top to Bottom",
