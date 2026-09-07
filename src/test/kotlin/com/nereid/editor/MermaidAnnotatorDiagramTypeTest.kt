@@ -52,6 +52,33 @@ class MermaidAnnotatorDiagramTypeTest : BasePlatformTestCase() {
         }
     }
 
+    /**
+     * The direction check was rewritten alongside the diagram-type check when both moved
+     * off the hand-rolled offset counter, so it needs its own cover.
+     */
+    fun testAnInvalidFlowchartDirectionIsStillWarnedAbout() {
+        myFixture.configureByText("dir.mmd", "flowchart XY\n  A --> B\n")
+        val warnings = myFixture.doHighlighting()
+            .filter { it.severity == HighlightSeverity.WARNING }
+            .mapNotNull { it.description }
+
+        assertTrue(
+            "An invalid direction is no longer reported. Got: $warnings",
+            warnings.any { it.contains("Invalid direction: XY") }
+        )
+    }
+
+    fun testAValidFlowchartDirectionIsNotWarnedAbout() {
+        myFixture.configureByText("dir_ok.mmd", "flowchart LR\n  A --> B\n")
+        assertEmpty(
+            "A valid direction is reported as invalid",
+            myFixture.doHighlighting()
+                .filter { it.severity == HighlightSeverity.WARNING }
+                .mapNotNull { it.description }
+                .filter { it.contains("Invalid direction") }
+        )
+    }
+
     fun testGibberishIsStillRejected() {
         assertFalse(
             "The annotator no longer flags an unknown diagram type at all, so the check " +
