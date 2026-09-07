@@ -29,6 +29,10 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     private var pendingSource: String? = null
     private var pendingTheme: String = "default"
     private var isLoaded = false
+    // One-shot per page load. The configured zoom applies to the first render only;
+    // re-applying on every render would refit on each keystroke and undo any zoom the
+    // user had just set by hand.
+    private var initialZoomApplied = false
     private var textSource: String? = null
     private val themeManager: ThemeManager
 
@@ -65,16 +69,29 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         internal const val SECURITY_LEVEL_PLACEHOLDER = "__SECURITY_LEVEL__"
 
         /**
+         * Replaced with the user's `mouseWheelZoomEnabled` before the page loads.
+         *
+         * Substituted rather than pushed after load so the very first wheel event obeys
+         * the setting; [applyMouseWheelZoom] handles changes made while a preview is open.
+         */
+        internal const val MOUSE_WHEEL_ZOOM_PLACEHOLDER = "__MOUSE_WHEEL_ZOOM__"
+
+        /**
          * Builds the page actually handed to the browser.
          *
          * Separate from [loadPreviewHtml] so the substitution is reachable without a
          * JCEF browser: none of this is visible to the Plugin Verifier, and a dropped
          * substitution leaves either a blank preview or an invalid security level.
          */
-        internal fun buildPreviewHtml(template: String, securityLevel: String): String =
+        internal fun buildPreviewHtml(
+            template: String,
+            securityLevel: String,
+            mouseWheelZoom: Boolean,
+        ): String =
             template
                 .replace(MERMAID_LIBRARY_PLACEHOLDER, MermaidBundle.script)
                 .replace(SECURITY_LEVEL_PLACEHOLDER, securityLevel)
+                .replace(MOUSE_WHEEL_ZOOM_PLACEHOLDER, mouseWheelZoom.toString())
 
         /**
          * Escapes text for embedding in a JavaScript template literal.
@@ -135,8 +152,42 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         // updated first, or the user's change only takes effect on the *next* render and
         // the setting looks inert all over again (#44).
         applySecurityLevel(MermaidSettings.getInstance().securityMode)
+        applyMouseWheelZoom(MermaidSettings.getInstance().mouseWheelZoomEnabled)
         themeManager.applyCurrentSettings()
         applyCustomCss(MermaidSettings.getInstance().customCss)
+    }
+
+    /**
+     * Applies the user's `defaultZoomLevel` to the first render after a page load.
+     *
+     * Runs after a render rather than on load because fitting measures the rendered SVG,
+     * which does not exist until a diagram has been drawn. Nothing read the setting at
+     * all before this; every preview fitted to view because that is what the page
+     * happened to do (#39).
+     */
+    private fun applyInitialZoom() {
+        if (initialZoomApplied) return
+        initialZoomApplied = true
+
+        val settings = MermaidSettings.getInstance()
+        when (val zoom = initialZoomFor(settings.defaultZoomLevel, settings.lastZoom)) {
+            is InitialZoom.FitToView -> fitToView()
+            is InitialZoom.Factor -> setZoom(zoom.value)
+        }
+    }
+
+    /**
+     * Pushes the mouse wheel zoom setting into an already-loaded preview, so unticking
+     * the box stops the next wheel event rather than the next time the file is opened.
+     */
+    fun applyMouseWheelZoom(enabled: Boolean) {
+        if (!isLoaded) return
+
+        browser.cefBrowser.executeJavaScript(
+            "window.setMouseWheelZoom($enabled);",
+            browser.cefBrowser.url,
+            0
+        )
     }
 
     /**
@@ -226,11 +277,21 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     private fun setupJsBridge() {
         jsQuery.addHandler { result ->
             when {
-                result.startsWith("success:") -> onRenderSuccess?.invoke()
+                result.startsWith("success:") -> {
+                    // After the render, not on load: fitToView() measures the rendered
+                    // SVG, which does not exist until a diagram has been drawn.
+                    applyInitialZoom()
+                    onRenderSuccess?.invoke()
+                }
                 result.startsWith("error:") -> onRenderError?.invoke(result.removePrefix("error:"))
                 result.startsWith("zoom:") -> {
                     val zoom = result.removePrefix("zoom:").toDoubleOrNull()
-                    if (zoom != null) onZoomChanged?.invoke(zoom)
+                    if (zoom != null) {
+                        // Recorded unconditionally, not only under LAST_USED, so switching
+                        // to Last Used later restores a real value rather than the default.
+                        MermaidSettings.getInstance().lastZoom = zoom
+                        onZoomChanged?.invoke(zoom)
+                    }
                 }
                 result == "report" -> onReportIssue?.invoke()
             }
@@ -242,6 +303,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                 if (frame?.isMain == true) {
                     injectJavaBridge()
                     isLoaded = true
+                    initialZoomApplied = false
                     // Apply theme and background settings immediately
                     applySettings()
                     pendingSource?.let { renderDiagram(it, pendingTheme) }
@@ -299,7 +361,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         browser.loadHTML(
             buildPreviewHtml(
                 template,
-                MermaidSettings.getInstance().securityMode.mermaidValue
+                MermaidSettings.getInstance().securityMode.mermaidValue,
+                MermaidSettings.getInstance().mouseWheelZoomEnabled,
             )
         )
     }

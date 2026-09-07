@@ -8,8 +8,10 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Toggleable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.intellij.openapi.fileEditor.FileDocumentManagerListener
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
 import com.intellij.openapi.fileEditor.FileEditorState
@@ -25,6 +27,9 @@ import com.nereid.diagnostics.DiagnosticDialog
 import com.nereid.diagnostics.DiagnosticNotifier
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
+import com.nereid.preview.RenderTrigger
+import com.nereid.preview.shouldRender
+import com.nereid.settings.MermaidSettings
 import java.awt.BorderLayout
 import java.awt.Image
 import java.awt.Toolkit
@@ -48,12 +53,33 @@ class MermaidSplitEditor(
 
     enum class ViewMode { CODE_ONLY, SPLIT, PREVIEW_ONLY }
 
+    companion object {
+        /**
+         * Maps the settings enum onto the editor's own.
+         *
+         * The two are deliberately not collapsed into one: [MermaidEditorState]
+         * serialises this enum into workspace.xml, so changing its type would break
+         * view-mode restore for existing users. The mapping is spelled out rather than
+         * done with `valueOf(name)` so a rename on either side fails to compile instead
+         * of throwing at runtime.
+         */
+        internal fun viewModeFrom(setting: MermaidSettings.ViewMode): ViewMode =
+            when (setting) {
+                MermaidSettings.ViewMode.CODE_ONLY -> ViewMode.CODE_ONLY
+                MermaidSettings.ViewMode.SPLIT -> ViewMode.SPLIT
+                MermaidSettings.ViewMode.PREVIEW_ONLY -> ViewMode.PREVIEW_ONLY
+            }
+    }
+
     private val mainPanel: JPanel
     private val splitPane: JSplitPane
     private val previewPanel: MermaidPreviewPanel
     private val toolbar: MermaidEditorToolbar
 
-    private var viewMode: ViewMode = ViewMode.SPLIT
+    // The user's configured default. A per-file mode saved in workspace.xml still wins:
+    // setState() overrides this when the file has been opened before, which is what makes
+    // this a default rather than a override.
+    private var viewMode: ViewMode = viewModeFrom(MermaidSettings.getInstance().defaultViewMode)
     private var lastRenderError: String? = null
     private val diagnosticNotifier = DiagnosticNotifier()
 
@@ -71,7 +97,8 @@ class MermaidSplitEditor(
             onZoomIn = { previewPanel.zoomIn() },
             onZoomOut = { previewPanel.zoomOut() },
             onZoomReset = { previewPanel.resetView() },
-            onFitToView = { previewPanel.fitToView() }
+            onFitToView = { previewPanel.fitToView() },
+            onRefresh = { renderIfPolicyAllows(RenderTrigger.MANUAL_REFRESH) },
         )
 
         val notificationBar = diagnosticNotifier.createNotificationBar()
@@ -88,7 +115,13 @@ class MermaidSplitEditor(
 
         diagnosticNotifier.attachToPanel(mainPanel)
 
+        // The split pane above is built laid out for SPLIT. Apply the configured default
+        // so Editor Only and Preview Only take effect on open rather than only once the
+        // user touches the toolbar.
+        applyViewMode(viewMode)
+
         setupDocumentListener()
+        setupSaveListener()
         setupExportCallbacks()
         setupRenderErrorCallback()
         updatePreview()
@@ -266,11 +299,45 @@ class MermaidSplitEditor(
 
     private fun setupDocumentListener() {
         val listener = DebouncedDocumentListener(
-            delayMs = 300,
-            onUpdate = { updatePreview() },
+            delayMs = { MermaidSettings.getInstance().debounceDelayMs },
+            onUpdate = { renderIfPolicyAllows(RenderTrigger.DOCUMENT_CHANGE) },
             parentDisposable = this
         )
         textEditor.editor.document.addDocumentListener(listener, this)
+    }
+
+    /**
+     * Renders the preview if [trigger] is one the user's `previewUpdateMode` acts on.
+     *
+     * Every render request goes through here so the three modes are decided in one place
+     * rather than at each call site.
+     */
+    private fun renderIfPolicyAllows(trigger: RenderTrigger) {
+        if (shouldRender(trigger, MermaidSettings.getInstance().previewUpdateMode)) {
+            updatePreview()
+        }
+    }
+
+    /**
+     * Re-renders on save, for On Save mode.
+     *
+     * Subscribed unconditionally and filtered by the policy rather than subscribed only
+     * while in On Save mode: the mode can change while the editor is open, and a
+     * subscription torn down and rebuilt on every settings change is a second thing to
+     * get wrong.
+     */
+    private fun setupSaveListener() {
+        ApplicationManager.getApplication().messageBus
+            .connect(this)
+            .subscribe(
+                FileDocumentManagerListener.TOPIC,
+                object : FileDocumentManagerListener {
+                    override fun beforeDocumentSaving(document: Document) {
+                        if (document != textEditor.editor.document) return
+                        renderIfPolicyAllows(RenderTrigger.SAVE)
+                    }
+                }
+            )
     }
 
     private fun updatePreview() {
@@ -280,6 +347,16 @@ class MermaidSplitEditor(
 
     fun setViewMode(mode: ViewMode) {
         ActionLogger.log("Switched to view mode: ${mode.name}")
+        applyViewMode(mode)
+    }
+
+    /**
+     * Lays the split pane out for [mode].
+     *
+     * Separate from [setViewMode] so construction can apply the configured default
+     * without logging it as a view-mode switch the user did not make.
+     */
+    private fun applyViewMode(mode: ViewMode) {
         viewMode = mode
         when (mode) {
             ViewMode.CODE_ONLY -> {

@@ -45,6 +45,15 @@ class MermaidSettings : PersistentStateComponent<MermaidSettings> {
     var mouseWheelZoomEnabled: Boolean = true
     var defaultZoomLevel: ZoomLevel = ZoomLevel.FIT_ALL
 
+    /**
+     * The zoom a preview was last left at, for [ZoomLevel.LAST_USED].
+     *
+     * Implicit state rather than a preference: it has no control, and is written by the
+     * preview's zoom callback rather than by the user. It exists because Last Used cannot
+     * mean anything without somewhere to remember the last value.
+     */
+    var lastZoom: Double = 1.0
+
     // Advanced settings
     /**
      * Extra CSS injected into the preview document, for overriding SVG styles Mermaid's

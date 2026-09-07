@@ -6,8 +6,16 @@ import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.util.Alarm
 
+/**
+ * Coalesces document changes into one preview render.
+ *
+ * [delayMs] is a function rather than a value because the delay is a user setting
+ * (`debounceDelayMs`) that can change while an editor is open. `Alarm.addRequest` takes
+ * the delay per call, so reading it here is enough -- the listener never needs
+ * re-registering, which is what the previous no-op `setDelay()` wrongly assumed.
+ */
 class DebouncedDocumentListener(
-    private val delayMs: Int = 300,
+    private val delayMs: () -> Int,
     private val onUpdate: () -> Unit,
     parentDisposable: Disposable
 ) : DocumentListener {
@@ -22,11 +30,7 @@ class DebouncedDocumentListener(
             ApplicationManager.getApplication().invokeLater {
                 onUpdate()
             }
-        }, delayMs)
-    }
-
-    fun setDelay(delayMs: Int) {
-        // Note: Would need to recreate listener for new delay
+        }, delayMs())
     }
 
     fun forceUpdate() {

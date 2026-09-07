@@ -106,7 +106,7 @@ class SecurityLevelTest {
 
     @Test
     fun testBuildingThePreviewSubstitutesTheLevelAndLeavesNoPlaceholder() {
-        val page = MermaidPreviewPanel.buildPreviewHtml(previewTemplate(), "loose")
+        val page = MermaidPreviewPanel.buildPreviewHtml(previewTemplate(), "loose", true)
 
         assertFalse(
             "Security level placeholder survived substitution",
@@ -127,7 +127,7 @@ class SecurityLevelTest {
     @Test
     fun testBothRenderPathsResolveToTheSameLevel() {
         MermaidSettings.SecurityMode.entries.forEach { mode ->
-            val preview = MermaidPreviewPanel.buildPreviewHtml(previewTemplate(), mode.mermaidValue)
+            val preview = MermaidPreviewPanel.buildPreviewHtml(previewTemplate(), mode.mermaidValue, true)
             val markdown = markdownInitScript()
                 .replace(MermaidPreviewPanel.SECURITY_LEVEL_PLACEHOLDER, mode.mermaidValue)
 

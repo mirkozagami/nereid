@@ -92,7 +92,12 @@
             <action id="Mermaid.CopyPng" class="com.nereid.actions.CopyAsPngAction"/>
         </group>
 
-        <action id="Mermaid.ExportPngShortcut" class="com.nereid.actions.ExportToPngAction">
+        <!--
+          The one export gesture that does not name a format, so it follows the user's
+          defaultExportFormat setting. It was bound to ExportToPngAction, which made the
+          setting unreachable (#39).
+        -->
+        <action id="Mermaid.ExportShortcut" class="com.nereid.actions.ExportDiagramAction">
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift E"/>
         </action>
 

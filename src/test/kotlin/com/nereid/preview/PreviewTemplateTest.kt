@@ -34,6 +34,54 @@ class PreviewTemplateTest {
         )
     }
 
+    /**
+     * `mouseWheelZoomEnabled` offers a checkbox in Settings, Nereid, Preview and was one
+     * of the seven Tier 2 settings in #39 -- persisted, shown, reported in diagnostics,
+     * and acted on by nothing. The wheel handler zoomed regardless.
+     */
+    @Test
+    fun testTemplateContainsTheMouseWheelZoomPlaceholder() {
+        assertEquals(
+            "preview.html must substitute the mouse wheel zoom flag in exactly one place, " +
+                "so the wheel handler and any later reader cannot disagree (#39)",
+            1,
+            Regex(Regex.escape(MermaidPreviewPanel.MOUSE_WHEEL_ZOOM_PLACEHOLDER))
+                .findAll(template()).count()
+        )
+    }
+
+    @Test
+    fun testWheelHandlerIsGatedOnTheSetting() {
+        val handler = Regex(
+            """addEventListener\('wheel'.*?\n        \}""",
+            RegexOption.DOT_MATCHES_ALL
+        ).find(template())?.value
+
+        assertNotNull("preview.html no longer registers a wheel listener", handler)
+        assertTrue(
+            "The wheel listener does not consult mouseWheelZoom, so the setting is " +
+                "decoration and Ctrl+wheel zooms whatever the user chose (#39)",
+            handler!!.contains("mouseWheelZoom")
+        )
+    }
+
+    @Test
+    fun testSubstitutionCarriesTheMouseWheelZoomSetting() {
+        listOf(true, false).forEach { enabled ->
+            val page = MermaidPreviewPanel.buildPreviewHtml(template(), "strict", enabled)
+
+            assertFalse(
+                "Mouse wheel zoom placeholder survived substitution",
+                page.contains(MermaidPreviewPanel.MOUSE_WHEEL_ZOOM_PLACEHOLDER)
+            )
+            assertEquals(
+                "Substituted page does not carry mouseWheelZoom=$enabled",
+                enabled.toString(),
+                Regex("""let mouseWheelZoom = (\w+)""").find(page)?.groupValues?.get(1)
+            )
+        }
+    }
+
     @Test
     fun testSubstitutionInjectsTheLibraryAndLeavesNoPlaceholder() {
         val page = template().replace(
@@ -174,6 +222,7 @@ class PreviewTemplateTest {
             "window.fitToView",
             "window.resetView",
             "window.applyCustomCss",
+            "window.setMouseWheelZoom",
             "javaBridge",
         ).forEach { symbol ->
             assertTrue("preview.html no longer defines or uses '$symbol'", html.contains(symbol))

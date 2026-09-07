@@ -16,10 +16,10 @@ import java.io.File
  * That gap let nine settings ship as decoration -- shown in the UI, saved to the user's
  * mermaid.xml, changing nothing (#39).
  *
- * Known limit: `DiagnosticCollector` reads most settings purely to report them in bug
- * bundles, and that counts as a reference here. So this catches "nothing reads it at all",
- * not "read but never acted on". The seven settings in that second category are tracked
- * in #39 and need wiring up rather than deleting, which is a per-setting behaviour change.
+ * `DiagnosticCollector` is deliberately excluded from the search. It reads nearly every
+ * setting in order to print it into a bug bundle, which is a reference but not a use --
+ * and treating it as one is exactly what let the Tier 2 settings in #39 look consumed
+ * while changing nothing. A setting must be read by something that acts on it.
  */
 class MermaidSettingsAreConsumedTest {
 
@@ -40,7 +40,8 @@ class MermaidSettingsAreConsumedTest {
         val consumers = File(root, mainSources).walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
             .filterNot { it.parentFile.name == "settings" }
-            .map { it.readText() }
+            .filterNot { it.name == DIAGNOSTICS_REPORTER }
+            .map { withoutComments(it.readText()) }
             .toList()
 
         val unread = declared.filter { setting ->
@@ -49,13 +50,37 @@ class MermaidSettingsAreConsumedTest {
         }
 
         assertTrue(
-            "These settings are persisted but nothing outside the settings package reads " +
-                "them. They show up in the UI, save to the user's mermaid.xml, and change " +
-                "nothing. Either wire them up or delete them (see #39):\n" +
+            "These settings are persisted but nothing acts on them. Being printed into a " +
+                "diagnostic bundle by $DIAGNOSTICS_REPORTER does not count -- that is what " +
+                "made the Tier 2 settings in #39 look consumed while they changed nothing. " +
+                "They show up in the UI, save to the user's mermaid.xml, and do nothing. " +
+                "Either wire them up or delete them:\n" +
                 unread.joinToString("\n") { "  - $it" },
             unread.isEmpty()
         )
     }
+
+    private companion object {
+        /**
+         * Reports settings into bug bundles rather than acting on them, so a reference
+         * from here says nothing about whether a setting works.
+         */
+        const val DIAGNOSTICS_REPORTER = "DiagnosticCollector.kt"
+    }
+
+    /**
+     * Strips block and line comments.
+     *
+     * Without this the search matches prose. A KDoc explaining that some setting used to
+     * be ignored counts as a reference to it, so a setting could be unwired and still
+     * pass purely because a comment named it -- which is precisely the kind of
+     * false negative this test exists to prevent. Verified by re-wiring a setting back to
+     * a literal and confirming this test then fails.
+     */
+    private fun withoutComments(source: String): String =
+        source
+            .replace(Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL), " ")
+            .replace(Regex("""//[^\n]*"""), " ")
 
     /** Property names declared as `var name: Type = ...` on MermaidSettings. */
     private fun declaredSettings(source: String): List<String> =
