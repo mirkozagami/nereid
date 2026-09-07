@@ -93,6 +93,16 @@ class MermaidSettingsConfigurable : Configurable {
                 row("Security:") {
                     comboBox(MermaidSettings.SecurityMode.entries)
                         .bindItem(settings::securityMode.toNullableProperty())
+                        // Says what the choice actually costs. Loose was made selectable
+                        // in #44 with nothing here to indicate that it hands the diagram
+                        // file itself more reach in the preview (#52).
+                        .comment(
+                            "<b>Strict</b> renders the diagram as inert markup. " +
+                                "<b>Loose</b> additionally allows HTML in node labels and " +
+                                "<code>click</code> links, which means a <code>.mmd</code> file " +
+                                "you open can influence what the preview does. Prefer Strict " +
+                                "for diagrams you did not write."
+                        )
                 }
                 row {
                     textArea()

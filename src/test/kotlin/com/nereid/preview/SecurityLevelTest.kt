@@ -3,6 +3,7 @@ package com.nereid.preview
 import com.nereid.settings.MermaidSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -142,6 +143,86 @@ class SecurityLevelTest {
                 markdownLevelIn(markdown)
             )
         }
+    }
+
+    /**
+     * The rendered SVG has to be swept for script URLs before anything can click it
+     * (#52).
+     *
+     * `click A href "javascript:..."` puts the URL in the .mmd file. Under 'loose'
+     * Mermaid passes it through to an `<a xlink:href>` around the node, and clicking runs
+     * it as script in the preview -- which reaches `window.javaBridge` and, since
+     * `JBCefJSQuery.inject()` emits a `window.<slot>({request: ...})` global, the Kotlin
+     * message router behind it too.
+     *
+     * Verified in a browser against the real page; asserted here because none of it is
+     * reachable from the test suite.
+     */
+    @Test
+    fun testRenderedSvgIsSweptForScriptUrls() {
+        val html = previewTemplate()
+
+        val paint = html.indexOf("diagram.innerHTML = svg;")
+        val sweep = html.indexOf("stripScriptUrls(diagram);")
+
+        assertTrue("preview.html no longer writes the rendered SVG into #diagram", paint >= 0)
+        assertTrue(
+            "The rendered SVG is inserted without stripping script URLs from it. A diagram " +
+                "using click ... href \"javascript:...\" then runs script in the preview (#52)",
+            sweep >= 0
+        )
+        assertTrue(
+            "stripScriptUrls() must run in the same task as the innerHTML that inserted the " +
+                "SVG, or the document yields with the attribute still live (#52)",
+            sweep > paint
+        )
+    }
+
+    /**
+     * The sweep must not consult `securityLevel`. 'strict' already drops these URLs
+     * inside Mermaid, so a guard that reads the setting is absent in exactly the case it
+     * exists for -- and the setting being wrong is the whole premise of #52.
+     */
+    @Test
+    fun testScriptUrlSweepIsNotConditionalOnTheSecurityLevel() {
+        val html = previewTemplate()
+        val body = Regex("""function stripScriptUrls\(root\) \{.*?\n        }""", RegexOption.DOT_MATCHES_ALL)
+            .find(html)?.value
+
+        assertNotNull("preview.html no longer defines stripScriptUrls()", body)
+        assertFalse(
+            "stripScriptUrls() reads securityLevel, so it stops guarding as soon as the " +
+                "level says it need not -- which is the situation it is for (#52)",
+            body!!.contains("securityLevel")
+        )
+    }
+
+    /**
+     * Schemes browsers execute, matched after whitespace and control characters are
+     * removed. `jav\tascript:` resolves to `javascript:` in Chrome -- confirmed in the
+     * browser -- and innerHTML decodes `&#9;` into that tab before the sweep sees it, so
+     * matching the raw attribute value would leave the bypass open.
+     */
+    @Test
+    fun testScriptUrlPatternsCoverTheExecutableSchemes() {
+        val html = previewTemplate()
+
+        listOf("javascript", "vbscript").forEach { scheme ->
+            assertTrue(
+                "preview.html no longer rejects '$scheme:' URLs in the rendered SVG (#52)",
+                Regex("""SCRIPT_URL\s*=\s*/[^/]*\b$scheme\b""").containsMatchIn(html)
+            )
+        }
+        assertTrue(
+            "Anchors must reject 'data:' as well -- a data: URL under the user's click is a " +
+                "navigation to attacker-authored content (#52)",
+            Regex("""ANCHOR_URL\s*=\s*/[^/]*\bdata\b""").containsMatchIn(html)
+        )
+        assertTrue(
+            "The scheme test no longer strips whitespace and control characters first, so " +
+                "'jav<tab>ascript:' gets through while still executing (#52)",
+            html.contains("value.replace(/[" + "\\u0000-\\u0020" + "]/g, '')")
+        )
     }
 
     private companion object {
