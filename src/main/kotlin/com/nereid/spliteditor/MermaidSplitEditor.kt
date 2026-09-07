@@ -8,8 +8,10 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Toggleable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.intellij.openapi.fileEditor.FileDocumentManagerListener
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
 import com.intellij.openapi.fileEditor.FileEditorState
@@ -25,6 +27,8 @@ import com.nereid.diagnostics.DiagnosticDialog
 import com.nereid.diagnostics.DiagnosticNotifier
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
+import com.nereid.preview.RenderTrigger
+import com.nereid.preview.shouldRender
 import com.nereid.settings.MermaidSettings
 import java.awt.BorderLayout
 import java.awt.Image
@@ -93,7 +97,8 @@ class MermaidSplitEditor(
             onZoomIn = { previewPanel.zoomIn() },
             onZoomOut = { previewPanel.zoomOut() },
             onZoomReset = { previewPanel.resetView() },
-            onFitToView = { previewPanel.fitToView() }
+            onFitToView = { previewPanel.fitToView() },
+            onRefresh = { renderIfPolicyAllows(RenderTrigger.MANUAL_REFRESH) },
         )
 
         val notificationBar = diagnosticNotifier.createNotificationBar()
@@ -116,6 +121,7 @@ class MermaidSplitEditor(
         applyViewMode(viewMode)
 
         setupDocumentListener()
+        setupSaveListener()
         setupExportCallbacks()
         setupRenderErrorCallback()
         updatePreview()
@@ -294,10 +300,44 @@ class MermaidSplitEditor(
     private fun setupDocumentListener() {
         val listener = DebouncedDocumentListener(
             delayMs = { MermaidSettings.getInstance().debounceDelayMs },
-            onUpdate = { updatePreview() },
+            onUpdate = { renderIfPolicyAllows(RenderTrigger.DOCUMENT_CHANGE) },
             parentDisposable = this
         )
         textEditor.editor.document.addDocumentListener(listener, this)
+    }
+
+    /**
+     * Renders the preview if [trigger] is one the user's `previewUpdateMode` acts on.
+     *
+     * Every render request goes through here so the three modes are decided in one place
+     * rather than at each call site.
+     */
+    private fun renderIfPolicyAllows(trigger: RenderTrigger) {
+        if (shouldRender(trigger, MermaidSettings.getInstance().previewUpdateMode)) {
+            updatePreview()
+        }
+    }
+
+    /**
+     * Re-renders on save, for On Save mode.
+     *
+     * Subscribed unconditionally and filtered by the policy rather than subscribed only
+     * while in On Save mode: the mode can change while the editor is open, and a
+     * subscription torn down and rebuilt on every settings change is a second thing to
+     * get wrong.
+     */
+    private fun setupSaveListener() {
+        ApplicationManager.getApplication().messageBus
+            .connect(this)
+            .subscribe(
+                FileDocumentManagerListener.TOPIC,
+                object : FileDocumentManagerListener {
+                    override fun beforeDocumentSaving(document: Document) {
+                        if (document != textEditor.editor.document) return
+                        renderIfPolicyAllows(RenderTrigger.SAVE)
+                    }
+                }
+            )
     }
 
     private fun updatePreview() {

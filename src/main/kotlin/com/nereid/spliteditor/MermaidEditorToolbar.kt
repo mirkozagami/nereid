@@ -14,7 +14,8 @@ class MermaidEditorToolbar(
     private val onZoomIn: () -> Unit,
     private val onZoomOut: () -> Unit,
     private val onZoomReset: () -> Unit,
-    private val onFitToView: () -> Unit
+    private val onFitToView: () -> Unit,
+    private val onRefresh: () -> Unit,
 ) {
 
     private val toolbar: ActionToolbar
@@ -31,6 +32,10 @@ class MermaidEditorToolbar(
             add(ZoomResetAction())
             add(FitToViewAction())
             addSeparator()
+            // Always present, not only in Manual mode: a preview can be re-rendered on
+            // demand whatever the update mode, and in Manual it is the only way (#39).
+            add(RefreshAction())
+            addSeparator()
             // Settings
             add(SettingsAction())
         }
@@ -40,6 +45,10 @@ class MermaidEditorToolbar(
     }
 
     val component: JComponent get() = toolbar.component
+
+    private inner class RefreshAction : AnAction("Refresh Preview", "Re-render the diagram now", AllIcons.Actions.Refresh) {
+        override fun actionPerformed(e: AnActionEvent) = onRefresh()
+    }
 
     private inner class ZoomInAction : AnAction("Zoom In", "Zoom in", AllIcons.General.Add) {
         override fun actionPerformed(e: AnActionEvent) = onZoomIn()
