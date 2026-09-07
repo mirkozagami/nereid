@@ -10,10 +10,14 @@
       return false;
     }
     try {
+      // Substituted from MermaidSettings.securityMode by MermaidMarkdownResourceProvider
+      // as this file is served. It was hardcoded to the loose level while the dedicated
+      // preview was hardcoded to the strict one, so the same diagram rendered with
+      // different security in the two previews and neither honoured the setting (#44).
       mermaid.initialize({
         startOnLoad: false,
         theme: "default",
-        securityLevel: "loose",
+        securityLevel: "__SECURITY_LEVEL__",
       });
       return true;
     } catch (e) {

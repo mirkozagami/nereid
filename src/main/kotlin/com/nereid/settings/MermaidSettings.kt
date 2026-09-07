@@ -63,7 +63,21 @@ class MermaidSettings : PersistentStateComponent<MermaidSettings> {
     enum class PreviewBackground { TRANSPARENT, MATCH_IDE, WHITE, DARK }
     enum class ExportFormat { PNG, SVG }
     enum class ZoomLevel { FIT_ALL, ACTUAL_SIZE, LAST_USED }
-    enum class SecurityMode { STRICT, LOOSE }
+    /**
+     * Mirrors Mermaid's `securityLevel` config values.
+     *
+     * [mermaidValue] is the wire format handed to `mermaid.initialize`, kept next to the
+     * enum rather than derived with `name.lowercase()` at each call site so both render
+     * paths cannot spell it differently -- which is how they came to disagree (#44).
+     *
+     * `loose` permits HTML in node labels and `click ... call` handlers, so it lets
+     * diagram *source* execute script in the preview document. That is the point of the
+     * setting, and the reason it defaults to STRICT.
+     */
+    enum class SecurityMode(val mermaidValue: String) {
+        STRICT("strict"),
+        LOOSE("loose"),
+    }
 
     override fun getState(): MermaidSettings = this
 
