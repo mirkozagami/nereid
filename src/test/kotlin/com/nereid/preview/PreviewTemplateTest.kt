@@ -228,4 +228,94 @@ class PreviewTemplateTest {
             assertTrue("preview.html no longer defines or uses '$symbol'", html.contains(symbol))
         }
     }
+
+    /**
+     * Renders are fire-and-forget from Kotlin and Mermaid's render time swings by two
+     * orders of magnitude with diagram size, so a render of an older buffer can still be
+     * running when the next one is dispatched (#45). Both results have to be checked
+     * against the newest request id before they touch the DOM or the bridge -- the
+     * success path so a stale diagram cannot overwrite a newer one, and the error path so
+     * a stale failure cannot hang an error banner over a preview that has since rendered
+     * fine.
+     *
+     * Verified in a browser against the real page; asserted here because none of that is
+     * reachable from the test suite.
+     */
+    @Test
+    fun testSupersededRendersAreDiscardedOnBothPaths() {
+        val html = template()
+
+        assertTrue(
+            "preview.html no longer tracks a newest-render id, so nothing can tell a " +
+                "stale render from the current one (#45)",
+            html.contains("latestRenderId")
+        )
+
+        val guard = "if (renderId !== latestRenderId) return;"
+        val afterMermaid = html.indexOf("await mermaid.render(")
+        val paint = html.indexOf("diagram.innerHTML = svg;")
+        val catchBlock = html.indexOf("} catch (e) {", afterMermaid)
+        val reportError = html.indexOf("onRenderError(errorMessage)", catchBlock)
+
+        assertTrue("preview.html no longer awaits mermaid.render()", afterMermaid >= 0)
+        assertTrue("preview.html no longer writes the rendered SVG into #diagram", paint >= 0)
+        assertTrue("preview.html no longer catches render failures", catchBlock >= 0)
+        assertTrue("preview.html no longer reports render errors to the bridge", reportError >= 0)
+
+        // Each guard is located within its own path -- between the await and the paint,
+        // and between the catch and the bridge call -- so dropping either one is caught.
+        // Asserting only that a guard exists somewhere ahead of each is not enough: the
+        // success guard sits ahead of the error path too and would cover for its absence.
+        assertTrue(
+            "The rendered SVG is written to #diagram without first checking that this is " +
+                "still the newest request. A slow render of an older buffer will overwrite " +
+                "a newer one and the preview will not match the editor (#45)",
+            html.lastIndexOf(guard, paint) > afterMermaid
+        )
+        assertTrue(
+            "onRenderError is called without first checking that this is still the newest " +
+                "request. A stale failure will raise an error banner over a preview that " +
+                "has already rendered successfully (#45)",
+            html.lastIndexOf(guard, reportError) > catchBlock
+        )
+    }
+
+    /**
+     * `mermaid.render()` is passed a fixed element id and begins by deleting whatever
+     * already holds it, so two overlapping calls tear out each other's scratch element
+     * and both report success over an empty preview. Queueing the requests is what keeps
+     * the fixed id safe, so the queue and the single call site have to stay together.
+     */
+    @Test
+    fun testRenderRequestsAreQueued() {
+        val html = template()
+
+        // Matched as code, not as the word: the prose in preview.html names renderChain
+        // too, and a `contains("renderChain")` check passes on a page that only talks
+        // about the queue it no longer has.
+        assertTrue(
+            "window.renderDiagram no longer queues each request behind the previous one. " +
+                "Overlapping mermaid.render() calls share one element id, tear out each " +
+                "other's scratch element and blank the preview (#45)",
+            html.contains("renderChain.then(")
+        )
+        // The declaration is deliberately excluded. Only a reassignment moves the queue
+        // forward; with just `let renderChain = Promise.resolve()` every request chains
+        // off the same already-settled promise and they all overlap as before.
+        assertTrue(
+            "Nothing reassigns renderChain, so it never advances past its initial value " +
+                "and every request runs against an already-settled promise -- the queue " +
+                "is decoration and the renders overlap exactly as before (#45)",
+            Regex("""(?<!let )renderChain\s*=[^=]""").containsMatchIn(html)
+        )
+        assertEquals(
+            "preview.html must call mermaid.render() from exactly one place. A second " +
+                "call site is not covered by the render queue and can overlap the first, " +
+                "which collides on the shared 'mermaid-diagram' element id (#45)",
+            1,
+            // The element id argument is what distinguishes a call site from the
+            // several places the prose above mentions mermaid.render().
+            Regex("""mermaid\.render\(\s*['"]""").findAll(html).count()
+        )
+    }
 }
