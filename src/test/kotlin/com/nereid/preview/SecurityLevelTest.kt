@@ -146,36 +146,106 @@ class SecurityLevelTest {
     }
 
     /**
-     * The rendered SVG has to be swept for script URLs before anything can click it
-     * (#52).
+     * Both render paths have to sweep the SVG they just rendered (#52, #60).
      *
      * `click A href "javascript:..."` puts the URL in the .mmd file. Under 'loose'
      * Mermaid passes it through to an `<a xlink:href>` around the node, and clicking runs
-     * it as script in the preview -- which reaches `window.javaBridge` and, since
-     * `JBCefJSQuery.inject()` emits a `window.<slot>({request: ...})` global, the Kotlin
-     * message router behind it too.
+     * it as script in the page. In the dedicated preview that reaches `window.javaBridge`
+     * and -- since `JBCefJSQuery.inject()` emits a `window.<slot>({request: ...})` global
+     * -- the Kotlin message router behind it. The Markdown preview has no bridge, but it
+     * is the path most likely to meet a file someone else wrote.
      *
-     * Verified in a browser against the real page; asserted here because none of it is
+     * Verified in a browser against both real pages; asserted here because neither is
      * reachable from the test suite.
      */
     @Test
-    fun testRenderedSvgIsSweptForScriptUrls() {
-        val html = previewTemplate()
+    fun testBothRenderPathsSweepTheRenderedSvg() {
+        val preview = previewTemplate()
+        val previewPaint = preview.indexOf("diagram.innerHTML = svg;")
+        val previewSweep = preview.indexOf("stripScriptUrls(diagram);")
 
-        val paint = html.indexOf("diagram.innerHTML = svg;")
-        val sweep = html.indexOf("stripScriptUrls(diagram);")
-
-        assertTrue("preview.html no longer writes the rendered SVG into #diagram", paint >= 0)
+        assertTrue("preview.html no longer writes the rendered SVG into #diagram", previewPaint >= 0)
         assertTrue(
-            "The rendered SVG is inserted without stripping script URLs from it. A diagram " +
-                "using click ... href \"javascript:...\" then runs script in the preview (#52)",
-            sweep >= 0
+            "preview.html inserts the rendered SVG without sweeping script URLs out of it (#52)",
+            previewSweep >= 0
         )
         assertTrue(
             "stripScriptUrls() must run in the same task as the innerHTML that inserted the " +
                 "SVG, or the document yields with the attribute still live (#52)",
-            sweep > paint
+            previewSweep > previewPaint
         )
+
+        val markdown = markdownInitScript()
+        val markdownPaint = markdown.indexOf("container.innerHTML = svg;")
+        val markdownSweep = markdown.indexOf("stripScriptUrls(container);")
+        val markdownInsert = markdown.indexOf("insertBefore(container")
+
+        assertTrue("markdown-init.js no longer writes the rendered SVG into a container", markdownPaint >= 0)
+        assertTrue(
+            "markdown-init.js inserts the rendered SVG without sweeping script URLs out of " +
+                "it, so a fenced mermaid block can run script in the Markdown preview (#60)",
+            markdownSweep >= 0
+        )
+        assertTrue(
+            "The sweep must follow the innerHTML that filled the container",
+            markdownSweep > markdownPaint
+        )
+        assertTrue(
+            "markdown-init.js must sweep the container while it is still detached, before " +
+                "insertBefore() puts it in the document (#60)",
+            markdownSweep < markdownInsert
+        )
+    }
+
+    /**
+     * One copy of the guard, substituted into both pages.
+     *
+     * #44 was two render paths carrying their own copy of a security decision and
+     * drifting apart. Copying the sweep into the second page would have set that up
+     * again, so it lives in one resource and both pages get it from there.
+     */
+    @Test
+    fun testBothRenderPathsCarryTheSameGuard() {
+        assertTrue(
+            "The shared script-URL guard is missing or empty, which would leave both " +
+                "previews substituting nothing where the sweep should be (#60)",
+            ScriptUrlGuard.source.contains("function stripScriptUrls")
+        )
+
+        listOf("strict", "loose").forEach { level ->
+            val page = MermaidPreviewPanel.buildPreviewHtml(previewTemplate(), level, true)
+            assertFalse(
+                "Script-URL guard placeholder survived substitution into preview.html",
+                page.contains(ScriptUrlGuard.PLACEHOLDER)
+            )
+            assertTrue(
+                "The built preview page does not carry the shared guard, so nothing defines " +
+                    "stripScriptUrls() and every render throws (#60)",
+                page.contains(ScriptUrlGuard.source)
+            )
+        }
+
+        assertTrue(
+            "markdown-init.js has no ${ScriptUrlGuard.PLACEHOLDER} token, so the served " +
+                "script cannot pick the guard up (#60)",
+            markdownInitScript().contains(ScriptUrlGuard.PLACEHOLDER)
+        )
+    }
+
+    /**
+     * Neither page may define its own copy alongside the shared one. A second definition
+     * wins or loses by source order, and that is precisely the drift #44 was about.
+     */
+    @Test
+    fun testNeitherPageDefinesItsOwnGuard() {
+        listOf("preview.html" to previewTemplate(), "markdown-init.js" to markdownInitScript())
+            .forEach { (name, source) ->
+                assertFalse(
+                    "$name defines stripScriptUrls() itself instead of taking the shared " +
+                        "guard through ${ScriptUrlGuard.PLACEHOLDER}. Two copies drift (#60)",
+                    source.contains("function stripScriptUrls")
+                )
+            }
     }
 
     /**
@@ -185,11 +255,10 @@ class SecurityLevelTest {
      */
     @Test
     fun testScriptUrlSweepIsNotConditionalOnTheSecurityLevel() {
-        val html = previewTemplate()
-        val body = Regex("""function stripScriptUrls\(root\) \{.*?\n        }""", RegexOption.DOT_MATCHES_ALL)
-            .find(html)?.value
+        val body = Regex("""function stripScriptUrls\(root\) \{.*?\n}""", RegexOption.DOT_MATCHES_ALL)
+            .find(ScriptUrlGuard.source)?.value
 
-        assertNotNull("preview.html no longer defines stripScriptUrls()", body)
+        assertNotNull("The shared guard no longer defines stripScriptUrls()", body)
         assertFalse(
             "stripScriptUrls() reads securityLevel, so it stops guarding as soon as the " +
                 "level says it need not -- which is the situation it is for (#52)",
@@ -205,23 +274,23 @@ class SecurityLevelTest {
      */
     @Test
     fun testScriptUrlPatternsCoverTheExecutableSchemes() {
-        val html = previewTemplate()
+        val guard = ScriptUrlGuard.source
 
         listOf("javascript", "vbscript").forEach { scheme ->
             assertTrue(
-                "preview.html no longer rejects '$scheme:' URLs in the rendered SVG (#52)",
-                Regex("""SCRIPT_URL\s*=\s*/[^/]*\b$scheme\b""").containsMatchIn(html)
+                "The guard no longer rejects '$scheme:' URLs in the rendered SVG (#52)",
+                Regex("""SCRIPT_URL\s*=\s*/[^/]*\b$scheme\b""").containsMatchIn(guard)
             )
         }
         assertTrue(
             "Anchors must reject 'data:' as well -- a data: URL under the user's click is a " +
                 "navigation to attacker-authored content (#52)",
-            Regex("""ANCHOR_URL\s*=\s*/[^/]*\bdata\b""").containsMatchIn(html)
+            Regex("""ANCHOR_URL\s*=\s*/[^/]*\bdata\b""").containsMatchIn(guard)
         )
         assertTrue(
             "The scheme test no longer strips whitespace and control characters first, so " +
                 "'jav<tab>ascript:' gets through while still executing (#52)",
-            html.contains("value.replace(/[" + "\\u0000-\\u0020" + "]/g, '')")
+            guard.contains("value.replace(/[\\u0000-\\u0020]/g, '')")
         )
     }
 

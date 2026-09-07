@@ -2,6 +2,8 @@ package com.nereid.markdown
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.xmlb.XmlSerializerUtil
+import com.nereid.preview.MermaidPreviewPanel
+import com.nereid.preview.ScriptUrlGuard
 import com.nereid.settings.MermaidSettings
 
 /**
@@ -87,6 +89,48 @@ class MermaidMarkdownResourceProviderTest : BasePlatformTestCase() {
                 "not a valid Mermaid securityLevel and would break rendering",
             script.contains("__SECURITY_LEVEL__")
         )
+        assertFalse(
+            "The script-URL guard placeholder reached the browser unsubstituted, so nothing " +
+                "defines stripScriptUrls() and every diagram in the preview throws (#60)",
+            script.contains(ScriptUrlGuard.PLACEHOLDER)
+        )
+    }
+
+    /**
+     * The served script has to carry the actual guard, not merely lack the placeholder.
+     *
+     * Substituting an empty string would satisfy the placeholder check above while leaving
+     * the Markdown preview exactly as exposed as it was -- the silent-inertness this
+     * codebase keeps producing. The guard is one shared resource so the two previews
+     * cannot drift the way the security level itself did in #44.
+     */
+    fun testServedScriptCarriesTheSharedScriptUrlGuard() {
+        val script = initScript()
+
+        assertTrue(
+            "The shared script-URL guard is missing or empty",
+            ScriptUrlGuard.source.contains("function stripScriptUrls")
+        )
+        assertTrue(
+            "The served markdown-init.js does not carry the shared guard, so a fenced " +
+                "mermaid block using click ... href \"javascript:...\" runs script in the " +
+                "Markdown preview (#60)",
+            script.contains(ScriptUrlGuard.source)
+        )
+    }
+
+    /**
+     * Both previews must end up with byte-identical guard source. #44 was two render
+     * paths holding their own copy of a security decision and drifting apart.
+     */
+    fun testBothPreviewsAreServedTheSameGuard() {
+        val template = MermaidPreviewPanel::class.java
+            .getResourceAsStream(MermaidPreviewPanel.PREVIEW_TEMPLATE_RESOURCE)
+            ?.bufferedReader()?.use { it.readText() } ?: ""
+        val dedicated = MermaidPreviewPanel.buildPreviewHtml(template, "loose", true)
+
+        assertTrue("Dedicated preview does not carry the guard", dedicated.contains(ScriptUrlGuard.source))
+        assertTrue("Markdown preview does not carry the guard", initScript().contains(ScriptUrlGuard.source))
     }
 
     /**

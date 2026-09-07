@@ -90,6 +90,7 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         ): String =
             template
                 .replace(MERMAID_LIBRARY_PLACEHOLDER, MermaidBundle.script)
+                .replace(ScriptUrlGuard.PLACEHOLDER, ScriptUrlGuard.source)
                 .replace(SECURITY_LEVEL_PLACEHOLDER, securityLevel)
                 .replace(MOUSE_WHEEL_ZOOM_PLACEHOLDER, mouseWheelZoom.toString())
 

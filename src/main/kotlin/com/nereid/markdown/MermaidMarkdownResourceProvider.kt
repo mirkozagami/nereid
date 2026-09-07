@@ -1,6 +1,7 @@
 package com.nereid.markdown
 
 import com.nereid.preview.MermaidPreviewPanel
+import com.nereid.preview.ScriptUrlGuard
 import com.nereid.settings.MermaidSettings
 import org.intellij.plugins.markdown.ui.preview.ResourceProvider
 
@@ -29,23 +30,28 @@ class MermaidMarkdownResourceProvider : ResourceProvider {
 
         // Only the init script carries placeholders. Scoped by name rather than by ".js"
         // so the 2 MB Mermaid bundle is not decoded and re-encoded on every preview load.
-        val content = if (actualPath == INIT_SCRIPT) substituteSecurityLevel(raw) else raw
+        val content = if (actualPath == INIT_SCRIPT) substitutePlaceholders(raw) else raw
 
         return ResourceProvider.Resource(content, mimeType)
     }
 
     /**
-     * Substitutes the user's security mode into the init script as it is served.
+     * Fills in the init script's placeholders as it is served.
      *
      * The Markdown preview is the platform's, and it takes this script from here at load
      * time -- there is no live channel into it the way there is for the dedicated
      * preview, so a change reaches an already-open Markdown preview only when it
      * reloads. Tracked in #51.
+     *
+     * The script-URL guard is substituted here for the same reason the dedicated preview
+     * substitutes it in `buildPreviewHtml`: it is one shared resource, so the two render
+     * paths cannot drift apart the way their security levels did in #44 (#60).
      */
-    private fun substituteSecurityLevel(raw: ByteArray): ByteArray {
+    private fun substitutePlaceholders(raw: ByteArray): ByteArray {
         val level = MermaidSettings.getInstance().securityMode.mermaidValue
         return String(raw, Charsets.UTF_8)
             .replace(MermaidPreviewPanel.SECURITY_LEVEL_PLACEHOLDER, level)
+            .replace(ScriptUrlGuard.PLACEHOLDER, ScriptUrlGuard.source)
             .toByteArray(Charsets.UTF_8)
     }
 
