@@ -25,18 +25,13 @@ import com.nereid.diagnostics.ActionLogger
 import com.nereid.diagnostics.DiagnosticCollector
 import com.nereid.diagnostics.DiagnosticDialog
 import com.nereid.diagnostics.DiagnosticNotifier
+import com.nereid.export.ClipboardExporter
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
 import com.nereid.preview.RenderTrigger
 import com.nereid.preview.shouldRender
 import com.nereid.settings.MermaidSettings
 import java.awt.BorderLayout
-import java.awt.Image
-import java.awt.Toolkit
-import java.awt.datatransfer.DataFlavor
-import java.awt.datatransfer.Transferable
-import java.awt.datatransfer.UnsupportedFlavorException
-import java.awt.image.BufferedImage
 import java.beans.PropertyChangeListener
 import java.io.ByteArrayInputStream
 import java.util.Base64
@@ -266,8 +261,7 @@ class MermaidSplitEditor(
                         val imageBytes = Base64.getDecoder().decode(base64Data)
                         val image = ImageIO.read(ByteArrayInputStream(imageBytes))
                         if (image != null) {
-                            val transferable = ImageTransferable(image)
-                            Toolkit.getDefaultToolkit().systemClipboard.setContents(transferable, null)
+                            ClipboardExporter().copyImageToClipboard(image)
                             ActionLogger.log("Copied PNG to clipboard")
                         } else {
                             error("the exported PNG data could not be decoded")
@@ -285,15 +279,6 @@ class MermaidSplitEditor(
             } else {
                 reportPngFailure("Failed to copy to clipboard", "Clipboard Copy", dataUrl)
             }
-        }
-    }
-
-    private class ImageTransferable(private val image: BufferedImage) : Transferable {
-        override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.imageFlavor)
-        override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = DataFlavor.imageFlavor.equals(flavor)
-        override fun getTransferData(flavor: DataFlavor): Image {
-            if (!isDataFlavorSupported(flavor)) throw UnsupportedFlavorException(flavor)
-            return image
         }
     }
 
