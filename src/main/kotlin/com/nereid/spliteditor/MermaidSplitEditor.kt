@@ -25,6 +25,7 @@ import com.nereid.diagnostics.DiagnosticDialog
 import com.nereid.diagnostics.DiagnosticNotifier
 import com.nereid.preview.DebouncedDocumentListener
 import com.nereid.preview.MermaidPreviewPanel
+import com.nereid.settings.MermaidSettings
 import java.awt.BorderLayout
 import java.awt.Image
 import java.awt.Toolkit
@@ -266,7 +267,7 @@ class MermaidSplitEditor(
 
     private fun setupDocumentListener() {
         val listener = DebouncedDocumentListener(
-            delayMs = 300,
+            delayMs = { MermaidSettings.getInstance().debounceDelayMs },
             onUpdate = { updatePreview() },
             parentDisposable = this
         )
