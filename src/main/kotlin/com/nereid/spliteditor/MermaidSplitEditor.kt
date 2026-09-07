@@ -49,12 +49,33 @@ class MermaidSplitEditor(
 
     enum class ViewMode { CODE_ONLY, SPLIT, PREVIEW_ONLY }
 
+    companion object {
+        /**
+         * Maps the settings enum onto the editor's own.
+         *
+         * The two are deliberately not collapsed into one: [MermaidEditorState]
+         * serialises this enum into workspace.xml, so changing its type would break
+         * view-mode restore for existing users. The mapping is spelled out rather than
+         * done with `valueOf(name)` so a rename on either side fails to compile instead
+         * of throwing at runtime.
+         */
+        internal fun viewModeFrom(setting: MermaidSettings.ViewMode): ViewMode =
+            when (setting) {
+                MermaidSettings.ViewMode.CODE_ONLY -> ViewMode.CODE_ONLY
+                MermaidSettings.ViewMode.SPLIT -> ViewMode.SPLIT
+                MermaidSettings.ViewMode.PREVIEW_ONLY -> ViewMode.PREVIEW_ONLY
+            }
+    }
+
     private val mainPanel: JPanel
     private val splitPane: JSplitPane
     private val previewPanel: MermaidPreviewPanel
     private val toolbar: MermaidEditorToolbar
 
-    private var viewMode: ViewMode = ViewMode.SPLIT
+    // The user's configured default. A per-file mode saved in workspace.xml still wins:
+    // setState() overrides this when the file has been opened before, which is what makes
+    // this a default rather than a override.
+    private var viewMode: ViewMode = viewModeFrom(MermaidSettings.getInstance().defaultViewMode)
     private var lastRenderError: String? = null
     private val diagnosticNotifier = DiagnosticNotifier()
 
@@ -88,6 +109,11 @@ class MermaidSplitEditor(
         }
 
         diagnosticNotifier.attachToPanel(mainPanel)
+
+        // The split pane above is built laid out for SPLIT. Apply the configured default
+        // so Editor Only and Preview Only take effect on open rather than only once the
+        // user touches the toolbar.
+        applyViewMode(viewMode)
 
         setupDocumentListener()
         setupExportCallbacks()
@@ -281,6 +307,16 @@ class MermaidSplitEditor(
 
     fun setViewMode(mode: ViewMode) {
         ActionLogger.log("Switched to view mode: ${mode.name}")
+        applyViewMode(mode)
+    }
+
+    /**
+     * Lays the split pane out for [mode].
+     *
+     * Separate from [setViewMode] so construction can apply the configured default
+     * without logging it as a view-mode switch the user did not make.
+     */
+    private fun applyViewMode(mode: ViewMode) {
         viewMode = mode
         when (mode) {
             ViewMode.CODE_ONLY -> {
