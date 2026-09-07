@@ -1,6 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.models.ProductRelease
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
 plugins {
     id("java")
@@ -81,6 +82,35 @@ intellijPlatform {
     }
 
     pluginVerification {
+        // Fail on every category currently measured at zero, so a new one breaks the
+        // PR that introduces it instead of accumulating quietly -- which is precisely
+        // how the two deprecated usages below sat unnoticed through two releases. The
+        // Gradle plugin's default covers only COMPATIBILITY_PROBLEMS,
+        // INTERNAL_API_USAGES and OVERRIDE_ONLY_API_USAGES.
+        //
+        // Two levels are deliberately absent, and neither omission is an oversight:
+        //
+        // DEPRECATED_API_USAGES -- 2 usages, both the FileSaverDescriptor varargs
+        //   constructor in MermaidSplitEditor. Before 251 that constructor is the only
+        //   one the platform declares, so there is nothing to migrate to while
+        //   sinceBuild is 233; this cannot reach zero until the floor rises. See #18.
+        //
+        // MISSING_DEPENDENCIES -- must never be enabled. dependencies.txt carries ~45
+        //   "(failed)" entries which are the IDE's own unresolved optional plugins,
+        //   not anything Nereid declares; they appear for every plugin verified
+        //   against IU. FailureLevel.ALL pulls this in and turns CI red immediately.
+        failureLevel = listOf(
+            FailureLevel.COMPATIBILITY_PROBLEMS,
+            FailureLevel.COMPATIBILITY_WARNINGS,
+            FailureLevel.INTERNAL_API_USAGES,
+            FailureLevel.OVERRIDE_ONLY_API_USAGES,
+            FailureLevel.NON_EXTENDABLE_API_USAGES,
+            FailureLevel.EXPERIMENTAL_API_USAGES,
+            FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
+            FailureLevel.PLUGIN_STRUCTURE_WARNINGS,
+            FailureLevel.INVALID_PLUGIN,
+        )
+
         ides {
             // Check if specific IDE is requested via command line for matrix builds
             val ideType = providers.gradleProperty("plugin.verifier.ide.type").orNull
