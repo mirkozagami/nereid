@@ -5,19 +5,19 @@ import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
+import com.nereid.language.MermaidLexer
 import com.nereid.language.psi.MermaidFile
 
 class MermaidAnnotator : Annotator {
 
     companion object {
-        private val VALID_DIAGRAM_TYPES = setOf(
-            "graph", "flowchart", "sequenceDiagram", "classDiagram",
-            "stateDiagram", "stateDiagram-v2", "erDiagram", "gantt",
-            "pie", "gitGraph", "mindmap", "timeline", "quadrantChart",
-            "requirementDiagram", "C4Context", "sankey-beta", "xychart-beta", "block-beta"
-        )
+        // Taken from the lexer rather than copied. This list was maintained here by hand
+        // and fell five diagram types behind the rest of the plugin, so valid diagrams --
+        // architecture-beta among them, after #4 was closed as fixed -- rendered in the
+        // preview and were underlined as invalid at the same time (#46).
+        private val VALID_DIAGRAM_TYPES = MermaidLexer.DIAGRAM_TYPE_NAMES
 
-        private val VALID_DIRECTIONS = setOf("TB", "TD", "BT", "RL", "LR")
+        private val VALID_DIRECTIONS = MermaidLexer.DIRECTION_NAMES
     }
 
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {

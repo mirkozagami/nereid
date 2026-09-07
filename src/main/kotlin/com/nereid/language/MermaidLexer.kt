@@ -44,6 +44,20 @@ class MermaidLexer : LexerBase() {
 
         private val DIRECTIONS = setOf("TB", "TD", "BT", "RL", "LR")
 
+        /**
+         * The diagram types the language knows, and the single source of truth for them.
+         *
+         * The annotator and the completion contributor each used to keep their own copy,
+         * and all three drifted apart in different directions: the annotator was missing
+         * the five Mermaid v11 types and flagged valid diagrams as invalid, while
+         * completion was missing three older ones and never suggested them (#46). This
+         * list is the one the lexer itself uses, so it cannot fall behind the language.
+         */
+        val DIAGRAM_TYPE_NAMES: Set<String> = DIAGRAM_KEYWORDS.keys
+
+        /** Flowchart directions, likewise duplicated in both consumers before #46. */
+        val DIRECTION_NAMES: Set<String> = DIRECTIONS
+
         private val KEYWORDS = mapOf(
             "subgraph" to MermaidTokenTypes.SUBGRAPH,
             "end" to MermaidTokenTypes.END,
