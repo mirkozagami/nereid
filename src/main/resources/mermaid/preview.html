@@ -100,11 +100,33 @@
         let isDragging = false;
         let lastX, lastY;
 
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'default',
-            securityLevel: 'strict'
-        });
+        // Substituted from MermaidSettings.securityMode before the page is loaded.
+        // Declared exactly once: every mermaid.initialize() below goes through
+        // applyMermaidConfig(), so the initial call and the one on each theme change
+        // cannot drift apart the way they did in #44, where this file hardcoded the
+        // strict level twice and markdown-init.js hardcoded the loose one.
+        let securityLevel = '__SECURITY_LEVEL__';
+        let currentTheme = 'default';
+
+        // Both values are always sent together. Mermaid's initialize() merges the given
+        // config over its defaults rather than over the previous call, so passing only
+        // one of them silently resets the other.
+        function applyMermaidConfig() {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: currentTheme,
+                securityLevel: securityLevel
+            });
+        }
+
+        applyMermaidConfig();
+
+        // Called from Kotlin when the user changes the setting, so an open preview picks
+        // it up without being reopened -- the same treatment theme and custom CSS get.
+        window.setSecurityLevel = function(level) {
+            securityLevel = level;
+            applyMermaidConfig();
+        };
 
         window.renderDiagram = async function(source, theme) {
             const diagram = document.getElementById('diagram');
@@ -112,7 +134,8 @@
 
             try {
                 if (theme) {
-                    mermaid.initialize({ theme: theme, securityLevel: 'strict' });
+                    currentTheme = theme;
+                    applyMermaidConfig();
                 }
 
                 const { svg } = await mermaid.render('mermaid-diagram', source);

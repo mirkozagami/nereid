@@ -56,6 +56,27 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         internal const val MERMAID_LIBRARY_PLACEHOLDER = "__MERMAID_LIBRARY__"
 
         /**
+         * Replaced with the user's [MermaidSettings.SecurityMode] before the page loads.
+         *
+         * The template must contain this exactly once: both `mermaid.initialize` calls
+         * read the single variable it becomes, so the initial call and the one on every
+         * theme change cannot drift apart the way they had in #44.
+         */
+        internal const val SECURITY_LEVEL_PLACEHOLDER = "__SECURITY_LEVEL__"
+
+        /**
+         * Builds the page actually handed to the browser.
+         *
+         * Separate from [loadPreviewHtml] so the substitution is reachable without a
+         * JCEF browser: none of this is visible to the Plugin Verifier, and a dropped
+         * substitution leaves either a blank preview or an invalid security level.
+         */
+        internal fun buildPreviewHtml(template: String, securityLevel: String): String =
+            template
+                .replace(MERMAID_LIBRARY_PLACEHOLDER, MermaidBundle.script)
+                .replace(SECURITY_LEVEL_PLACEHOLDER, securityLevel)
+
+        /**
          * Escapes text for embedding in a JavaScript template literal.
          *
          * Both the diagram source and the user's custom CSS are passed to the page this
@@ -109,8 +130,30 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
     }
 
     fun applySettings() {
+        // Order matters. applyCurrentSettings() re-renders the diagram, and the render
+        // uses whatever security level the page currently holds -- so the level has to be
+        // updated first, or the user's change only takes effect on the *next* render and
+        // the setting looks inert all over again (#44).
+        applySecurityLevel(MermaidSettings.getInstance().securityMode)
         themeManager.applyCurrentSettings()
         applyCustomCss(MermaidSettings.getInstance().customCss)
+    }
+
+    /**
+     * Pushes the security level into an already-loaded preview.
+     *
+     * The level is substituted into the page at load time, so without this a change
+     * would not take effect until the file was reopened -- the failure mode #39 was
+     * about, and a poor one for a security control in particular.
+     */
+    fun applySecurityLevel(mode: MermaidSettings.SecurityMode) {
+        if (!isLoaded) return
+
+        browser.cefBrowser.executeJavaScript(
+            "window.setSecurityLevel('${mode.mermaidValue}');",
+            browser.cefBrowser.url,
+            0
+        )
     }
 
     /**
@@ -253,7 +296,12 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
             onRenderError?.invoke("Preview template could not be loaded from the plugin resources")
             return
         }
-        browser.loadHTML(template.replace(MERMAID_LIBRARY_PLACEHOLDER, MermaidBundle.script))
+        browser.loadHTML(
+            buildPreviewHtml(
+                template,
+                MermaidSettings.getInstance().securityMode.mermaidValue
+            )
+        )
     }
 
     private fun readPreviewTemplate(): String =
