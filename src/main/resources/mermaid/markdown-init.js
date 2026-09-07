@@ -5,6 +5,10 @@
   let isRendering = false;
   let observer = null;
 
+  // The script-URL guard, shared with the dedicated preview and substituted in by
+  // MermaidMarkdownResourceProvider as this file is served. See script-urls.js.
+  __SCRIPT_URL_GUARD__
+
   function initMermaid() {
     if (typeof mermaid === "undefined") {
       return false;
@@ -77,6 +81,10 @@
         const container = document.createElement("div");
         container.className = "mermaid-rendered";
         container.innerHTML = svg;
+
+        // Swept while the container is still detached, so a script URL from the
+        // diagram never exists in the live document at all (#60).
+        stripScriptUrls(container);
 
         block.element.style.display = "none";
         block.element.parentNode.insertBefore(container, block.element.nextSibling);
