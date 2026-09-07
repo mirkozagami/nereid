@@ -138,7 +138,54 @@
             applyMermaidConfig();
         };
 
-        window.renderDiagram = async function(source, theme) {
+        /*
+          Render requests are queued, and superseded ones are dropped (#45).
+
+          renderDiagram() is fire-and-forget from Kotlin: the typing debounce dispatches
+          a fresh call while the previous one may still be running, and Mermaid's render
+          time swings by two orders of magnitude with diagram size. Unguarded, that gave
+          two distinct failures.
+
+          Ordering -- whichever render finished last won the innerHTML, so a slow render
+          of an older buffer could land on top of a newer one and leave the preview
+          showing a diagram the editor no longer contains until the next keystroke.
+
+          Collision -- mermaid.render() is passed a fixed element id, and it begins by
+          deleting whatever already holds that id. A second overlapping call therefore
+          tears the first one's scratch element out of the document mid-render; both
+          calls then report success over an empty preview.
+
+          Serialising fixes both. Each request waits for the previous one, so only one
+          mermaid.render() is ever in flight and the fixed element id cannot collide.
+          Overlapping them would buy nothing anyway: Mermaid's cost is synchronous layout
+          on the single JS thread, so concurrent renders interleave rather than finish
+          sooner.
+
+          latestRenderId is then checked twice -- when the queue reaches a request, and
+          again after its render. The first check means a request the user has already
+          typed past costs nothing at all; the second stops an intermediate state being
+          painted when a newer request arrived mid-render.
+        */
+        let latestRenderId = 0;
+        let renderChain = Promise.resolve();
+
+        window.renderDiagram = function(source, theme) {
+            const renderId = ++latestRenderId;
+            const result = renderChain.then(function() {
+                return renderOneDiagram(renderId, source, theme);
+            });
+            // The chain has to survive a failed link. renderOneDiagram() reports render
+            // errors itself, but anything escaping it would reject renderChain for good
+            // and leave every later render silently unattempted.
+            renderChain = result.catch(function() {});
+            return result;
+        };
+
+        async function renderOneDiagram(renderId, source, theme) {
+            // Superseded while queued: this source is already stale, so skip the work
+            // rather than render it and throw the result away.
+            if (renderId !== latestRenderId) return;
+
             const diagram = document.getElementById('diagram');
             const error = document.getElementById('error');
 
@@ -149,16 +196,23 @@
                 }
 
                 const { svg } = await mermaid.render('mermaid-diagram', source);
+                if (renderId !== latestRenderId) return;
+
                 diagram.innerHTML = svg;
                 diagram.classList.remove('hidden');
                 error.classList.add('hidden');
 
+                // Only the render that actually landed restores the pan/zoom.
                 applyTransform();
 
                 if (window.javaBridge) {
                     window.javaBridge.onRenderSuccess();
                 }
             } catch (e) {
+                // A stale failure has to stay silent too, or its banner sits over a
+                // preview that has since rendered fine.
+                if (renderId !== latestRenderId) return;
+
                 const errorMessage = e.message || 'Failed to render diagram';
                 document.getElementById('error-message').textContent = errorMessage;
                 error.classList.remove('hidden');
@@ -167,7 +221,7 @@
                     window.javaBridge.onRenderError(errorMessage);
                 }
             }
-        };
+        }
 
         window.setZoom = function(zoom) {
             currentZoom = zoom;
