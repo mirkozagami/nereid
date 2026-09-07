@@ -108,6 +108,16 @@
         let securityLevel = '__SECURITY_LEVEL__';
         let currentTheme = 'default';
 
+        // Substituted from MermaidSettings.mouseWheelZoomEnabled before the page loads,
+        // rather than pushed afterwards, so the very first wheel event already obeys the
+        // setting. It was one of the Tier 2 settings in #39: a checkbox that saved to
+        // disk and changed nothing.
+        let mouseWheelZoom = __MOUSE_WHEEL_ZOOM__;
+
+        window.setMouseWheelZoom = function(enabled) {
+            mouseWheelZoom = enabled;
+        };
+
         // Both values are always sent together. Mermaid's initialize() merges the given
         // config over its defaults rather than over the previous call, so passing only
         // one of them silently resets the other.
@@ -244,6 +254,7 @@
         };
 
         document.addEventListener('wheel', function(e) {
+            if (!mouseWheelZoom) return;
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 const scrollAmount = Math.abs(e.deltaY);

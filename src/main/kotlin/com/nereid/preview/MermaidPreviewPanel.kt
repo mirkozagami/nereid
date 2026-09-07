@@ -71,10 +71,23 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
          * JCEF browser: none of this is visible to the Plugin Verifier, and a dropped
          * substitution leaves either a blank preview or an invalid security level.
          */
-        internal fun buildPreviewHtml(template: String, securityLevel: String): String =
+        /**
+         * Replaced with the user's `mouseWheelZoomEnabled` before the page loads.
+         *
+         * Substituted rather than pushed after load so the very first wheel event obeys
+         * the setting; [setMouseWheelZoom] handles changes made while a preview is open.
+         */
+        internal const val MOUSE_WHEEL_ZOOM_PLACEHOLDER = "__MOUSE_WHEEL_ZOOM__"
+
+        internal fun buildPreviewHtml(
+            template: String,
+            securityLevel: String,
+            mouseWheelZoom: Boolean,
+        ): String =
             template
                 .replace(MERMAID_LIBRARY_PLACEHOLDER, MermaidBundle.script)
                 .replace(SECURITY_LEVEL_PLACEHOLDER, securityLevel)
+                .replace(MOUSE_WHEEL_ZOOM_PLACEHOLDER, mouseWheelZoom.toString())
 
         /**
          * Escapes text for embedding in a JavaScript template literal.
@@ -135,8 +148,23 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         // updated first, or the user's change only takes effect on the *next* render and
         // the setting looks inert all over again (#44).
         applySecurityLevel(MermaidSettings.getInstance().securityMode)
+        applyMouseWheelZoom(MermaidSettings.getInstance().mouseWheelZoomEnabled)
         themeManager.applyCurrentSettings()
         applyCustomCss(MermaidSettings.getInstance().customCss)
+    }
+
+    /**
+     * Pushes the mouse wheel zoom setting into an already-loaded preview, so unticking
+     * the box stops the next wheel event rather than the next time the file is opened.
+     */
+    fun applyMouseWheelZoom(enabled: Boolean) {
+        if (!isLoaded) return
+
+        browser.cefBrowser.executeJavaScript(
+            "window.setMouseWheelZoom($enabled);",
+            browser.cefBrowser.url,
+            0
+        )
     }
 
     /**
@@ -299,7 +327,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
         browser.loadHTML(
             buildPreviewHtml(
                 template,
-                MermaidSettings.getInstance().securityMode.mermaidValue
+                MermaidSettings.getInstance().securityMode.mermaidValue,
+                MermaidSettings.getInstance().mouseWheelZoomEnabled,
             )
         )
     }
