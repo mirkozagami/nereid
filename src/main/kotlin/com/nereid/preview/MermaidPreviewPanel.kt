@@ -93,6 +93,47 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
                 .replace(SECURITY_LEVEL_PLACEHOLDER, securityLevel)
                 .replace(MOUSE_WHEEL_ZOOM_PLACEHOLDER, mouseWheelZoom.toString())
 
+        /** The only payload shape [exportAsPng] is able to produce. */
+        internal const val PNG_DATA_URL_PREFIX = "data:image/png;base64,"
+
+        /**
+         * Stands in for a payload that did not come from [exportAsPng].
+         *
+         * Phrased as the message `reportPngFailure` already produced for an unrecognised
+         * payload, so hardening the boundary does not change what the user is told when
+         * an export genuinely fails.
+         */
+        internal const val PNG_EXPORT_REJECTED = "error:unexpected image data format"
+
+        private val BASE64_BODY = Regex("""[A-Za-z0-9+/]+={0,2}""")
+
+        /**
+         * Vets a PNG export payload before it reaches the pending export callback.
+         *
+         * The payload crosses from page script, and under `loose` that is not
+         * necessarily *our* page script: `click ... href "javascript:..."` lets diagram
+         * source call `javaBridge.onPngExport` itself, and whatever it passes would be
+         * written to the file the user chose in the save dialog (#52).
+         *
+         * Both export call sites tested this prefix at the far end already. Checking here
+         * instead means one place decides what a PNG export may contain, and a third
+         * caller cannot forget to.
+         *
+         * The prefix alone is not sufficient -- it is just as attacker-chosen as the rest
+         * -- so the body has to be base64 too. Anything else is turned into an `error:`
+         * report rather than dropped, because a silently discarded export is the failure
+         * mode this codebase keeps producing.
+         */
+        internal fun sanitizePngExportPayload(payload: String): String = when {
+            // exportAsPng() calls back with "" when the browser is not loaded, and
+            // reportPngFailure has its own message for that.
+            payload.isEmpty() -> payload
+            payload.startsWith("error:") -> payload
+            payload.startsWith(PNG_DATA_URL_PREFIX) &&
+                BASE64_BODY.matches(payload.removePrefix(PNG_DATA_URL_PREFIX)) -> payload
+            else -> PNG_EXPORT_REJECTED
+        }
+
         /**
          * Escapes text for embedding in a JavaScript template literal.
          *
@@ -229,7 +270,8 @@ class MermaidPreviewPanel(parentDisposable: Disposable) : Disposable {
 
     private fun setupExportQueries() {
         pngExportQuery.addHandler { dataUrl ->
-            pngExportCallback?.invoke(dataUrl)
+            // Vetted at the boundary rather than trusted: see sanitizePngExportPayload.
+            pngExportCallback?.invoke(sanitizePngExportPayload(dataUrl))
             pngExportCallback = null
             null
         }
