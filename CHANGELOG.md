@@ -5,6 +5,19 @@ All notable changes to Nereid are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1]
+
+JetBrains began bundling its own Mermaid plugin in 2026.2. It claims the same language identifier Nereid does, and an IDE will only allow one. This release makes Nereid step aside cleanly instead of failing.
+
+### Fixed
+
+- **Nereid no longer breaks IntelliJ IDEA, WebStorm or PyCharm 2026.2.** From build 262 these IDEs bundle JetBrains' own Mermaid plugin, which registers the same "Mermaid" language identifier Nereid uses. Only one plugin may claim an identifier, so whichever loaded second failed, taking Nereid's file type, parser and preview down with it. The IDE reported errors while indexing and could stall at startup behind a plugin-conflict dialog. Nereid now declares the incompatibility, so the IDE disables one of the two and explains why, rather than loading Nereid into a broken state. IDEs up to 2026.1 do not bundle Mermaid and were never affected, unless you had installed JetBrains' Mermaid plugin yourself, in which case the same collision applied and is now handled too.
+
+### Changed
+
+- **On 2026.2 and later, Nereid will not load while JetBrains' Mermaid plugin is enabled.** That plugin is bundled and on by default, so this is what most people upgrading will see. To use Nereid instead, open Settings, then Plugins, disable Mermaid, and restart the IDE. Both plugins remain installed; you are choosing which one is active.
+- **Which to choose.** JetBrains' plugin covers the Mermaid language itself more thoroughly than Nereid does, adding formatting, live templates, spellchecking, rename and richer inspections. Nereid still offers things it does not: exporting a diagram to PNG or SVG or the clipboard, zoom and pan in the preview, a structure view, and control over the preview's theme, security level and Mermaid library version. The bundled plugin ships its own export action switched off. Making Nereid build on the bundled language rather than exclude it is planned; see issue 65 on GitHub.
+
 ## [1.3.0]
 
 The settings screen finally does what it says, and neither preview will let a diagram file run script any more. Almost everything here is behaviour that was advertised and quietly absent.
