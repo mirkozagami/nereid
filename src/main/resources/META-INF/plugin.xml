@@ -44,6 +44,22 @@
     <depends>com.intellij.modules.platform</depends>
     <depends optional="true" config-file="markdown-support.xml">org.intellij.plugins.markdown</depends>
 
+    <!--
+      JetBrains' own Mermaid plugin registers Language("Mermaid"), the same global ID this
+      plugin uses. Whichever loads second throws ImplementationConflictException from the
+      Language constructor, and since MermaidLanguage is a Kotlin object that happens in
+      its static initialiser, poisoning the class and every class below it. The IDE also
+      blocks startup behind a modal plugin-conflict dialog. That plugin became bundled in
+      build 262 (IDEA, WebStorm and PyCharm alike), so from 2026.2 on this is the default
+      state, not an edge case.
+
+      Declaring the incompatibility makes the IDE disable Nereid with an explanation rather
+      than load it broken. This is a stopgap: #65 tracks reworking 262+ to build on the
+      bundled language instead of competing with it, which removes the collision and this
+      line with it. See #64.
+    -->
+    <incompatible-with>com.intellij.mermaid</incompatible-with>
+
     <extensions defaultExtensionNs="com.intellij">
         <fileType
             name="Mermaid"
